@@ -9,7 +9,7 @@
     --border-color: #dee2e6;
 }
 
-body.dark-mode {
+.dark-mode {
     --bg-color: #121212;
     --container-bg: #1e1e1e;
     --text-color: #e9ecef;
@@ -45,7 +45,7 @@ body {
     border: 1px solid var(--border-color);
 }
 
-body.dark-mode .container {
+.dark-mode .container {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
