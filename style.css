@@ -1,3 +1,22 @@
+:root {
+    --bg-color: #f0f0f0;
+    --container-bg: #ffffff;
+    --text-color: #333333;
+    --btn-bg: #007bff;
+    --btn-hover: #0056b3;
+    --lotto-num-bg: #ffc107;
+    --lotto-num-text: #000000;
+}
+
+[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --container-bg: #2d2d2d;
+    --text-color: #f0f0f0;
+    --btn-bg: #375a7f;
+    --btn-hover: #2b4764;
+    --lotto-num-bg: #e67e22;
+    --lotto-num-text: #ffffff;
+}
 
 body {
     font-family: sans-serif;
@@ -5,16 +24,33 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #f0f0f0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
     margin: 0;
+    transition: background-color 0.3s, color 0.3s;
 }
 
 .container {
+    position: relative;
     text-align: center;
     padding: 2rem;
-    background-color: white;
+    background-color: var(--container-bg);
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s;
+}
+
+#theme-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 0.5rem;
+    background: none;
+    border: 1px solid var(--text-color);
+    color: var(--text-color);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
 }
 
 #generator-btn {
@@ -22,7 +58,7 @@ body {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
     color: white;
-    background-color: #007bff;
+    background-color: var(--btn-bg);
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -30,13 +66,15 @@ body {
 }
 
 #generator-btn:hover {
-    background-color: #0056b3;
+    background-color: var(--btn-hover);
 }
 
 .lotto-numbers {
     display: flex;
     justify-content: center;
     margin-top: 2rem;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .lotto-number {
@@ -45,10 +83,10 @@ body {
     align-items: center;
     width: 50px;
     height: 50px;
-    margin: 0 0.5rem;
     border-radius: 50%;
-    background-color: #ffc107;
-    color: black;
+    background-color: var(--lotto-num-bg);
+    color: var(--lotto-num-text);
     font-size: 1.5rem;
     font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
