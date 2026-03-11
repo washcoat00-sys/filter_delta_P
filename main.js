@@ -71,24 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = {};
         for (const id of ids) {
             const el = document.getElementById(id);
-            if (!el) {
-                console.error(`Missing element: ${id}`);
-                alert(`오류: '${id}' 입력 필드를 찾을 수 없습니다.`);
-                return null;
-            }
+            if (!el) return null;
             const val = parseFloat(el.value);
-            if (isNaN(val)) {
-                alert(`입력값을 확인해주세요: [${id}] 항목에 숫자가 없습니다.`);
-                return null;
-            }
+            if (isNaN(val)) return null;
             data[id] = val;
         }
         
         const k2El = document.getElementById('k2');
-        if (!k2El || isNaN(parseFloat(k2El.value))) {
-            alert("입력값을 확인해주세요: [Soot 투과율(k2)] 항목에 숫자가 필요합니다.");
-            return null;
-        }
+        if (!k2El || isNaN(parseFloat(k2El.value))) return null;
         data['k2'] = k2El.value;
         
         return data;
@@ -96,7 +86,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     analyzeBtn.addEventListener('click', () => {
         const d = getInputs();
-        if (!d) return;
+        if (!d) {
+            alert("모든 입력값을 확인해주세요.");
+            return;
+        }
 
         const vol_L = (d.width_mm * d.height_mm * d.depth_mm) / 1e6;
         const curr_ash_gL = Math.max(0, (d.weight_after_regen - d.weight_clean) * 1000) / vol_L;
@@ -119,10 +112,12 @@ document.addEventListener('DOMContentLoaded', () => {
         resP1.textContent = d.amb_kpa.toFixed(3);
         resultsContent.innerHTML = '';
         
-        states.forEach(state => {
+        states.forEach((state, index) => {
             const info = getInfo(state.soot, state.ash);
             const card = document.createElement('div');
             card.className = 'result-card';
+            // 순차적인 애니메이션 느낌을 주기 위해 약간의 지연 시간 부여
+            card.style.animationDelay = `${index * 0.15}s`; 
             card.innerHTML = `
                 <strong>${state.title}</strong>
                 <p>- 총 차압: ${info.dp.toFixed(3)} kPa</p>
@@ -171,6 +166,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         tension: 0.1
                     },
                     {
+                        label: '대기압 수준 (101.3 kPa)',
+                        data: sootRange.map(() => 101.3),
+                        borderColor: '#ff0000',
+                        borderDash: [3, 3],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: false
+                    },
+                    {
                         label: '현재 로딩 지점',
                         data: [{ x: curr_soot_gL.toFixed(2), y: currDP }],
                         backgroundColor: 'red',
@@ -185,7 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 maintainAspectRatio: false,
                 scales: {
                     x: { title: { display: true, text: 'Soot Loading (g/L)' }, type: 'linear', min: 0, max: 10 },
-                    y: { title: { display: true, text: 'Total Pressure Drop (kPa)' }, beginAtZero: true }
+                    y: { 
+                        title: { display: true, text: 'Total Pressure Drop (kPa)' }, 
+                        beginAtZero: true,
+                        suggestedMax: 120 
+                    }
                 }
             }
         });
