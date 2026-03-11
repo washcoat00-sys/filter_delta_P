@@ -166,15 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         tension: 0.1
                     },
                     {
-                        label: '대기압 수준 (101.3 kPa)',
-                        data: sootRange.map(() => 101.3),
-                        borderColor: '#ff0000',
-                        borderDash: [3, 3],
-                        borderWidth: 1,
-                        pointRadius: 0,
-                        fill: false
-                    },
-                    {
                         label: '현재 로딩 지점',
                         data: [{ x: curr_soot_gL.toFixed(2), y: currDP }],
                         backgroundColor: 'red',
@@ -191,8 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     x: { title: { display: true, text: 'Soot Loading (g/L)' }, type: 'linear', min: 0, max: 10 },
                     y: { 
                         title: { display: true, text: 'Total Pressure Drop (kPa)' }, 
-                        beginAtZero: true,
-                        suggestedMax: 120 
+                        beginAtZero: true
                     }
                 }
             }
