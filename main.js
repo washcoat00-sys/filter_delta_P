@@ -185,15 +185,16 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             title: "2. 촉매 제원 (Catalyst)",
             params: [
-                { label: "촉매 외경 [mm]", default: 100.0 },
+                { label: "촉매 가로 [mm]", default: 100.0 },
+                { label: "촉매 세로 [mm]", default: 100.0 },
                 { label: "Cone 각도 [도]", default: 47.0 },
                 { label: "촉매 길이 [mm]", default: 100.0 },
                 { label: "CPSI [cpsi]", default: 120.0 },
                 { label: "벽 두께 [mil]", default: 15.7 },
-                { label: "설치 가로 [m]", default: 2.2 },
-                { label: "설치 세로 [m]", default: 2.0 },
-                { label: "설치 단수 [단]", default: 8.0 },
-                { label: "단간 간격 [cm]", default: 10.0 }
+                { label: "입구 가로 [m]", default: 2.2 },
+                { label: "입구 세로 [m]", default: 2.0 },
+                { label: "적재 단수 [단]", default: 8.0 },
+                { label: "간격 [cm]", default: 10.0 }
             ]
         },
         {
@@ -239,21 +240,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     runFlowBtn.addEventListener('click', async () => {
         if (!pyodide) return;
-        const inputs = Array.from({length: 17}, (_, i) => parseFloat(document.getElementById(`flow_p_${i}`).value));
+        const inputs = Array.from({length: 18}, (_, i) => parseFloat(document.getElementById(`flow_p_${i}`).value));
         const pythonCode = `
 import numpy as np
 def calculate_logic(inputs):
-    m_flow_cmm, temp_c, d_pipe_mm, _, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, install_w_m, install_h_m, num_layers, _, vane_count, vane_thick_mm, vane_surface_m2, _, vane_pos_cm_default = inputs
+    # 입력 매핑 (18개 항목)
+    m_flow_cmm, temp_c, d_pipe_mm, cat_w_mm, cat_h_mm, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, install_w_m, install_h_m, num_layers, cat_gap_cm, vane_count, vane_thick_mm, vane_surface_m2, vane_angle_deg, vane_pos_cm_default = inputs
+    
     temp_k = temp_c + 273.15
     rho = 101325 / (287.05 * temp_k)
     mu = 1.716e-5 * (temp_k/273.15)**1.5 * (273.15+110.4)/(temp_k+110.4)
     area_pipe = np.pi * (d_pipe_mm/1000)**2 / 4
-    area_install = install_w_m * install_h_m
+    
+    # 면적 계산: 사각형 (mm -> m 변환)
+    area_install = (cat_w_mm / 1000.0) * (cat_h_mm / 1000.0)
+    
     total_cat_length_m = num_layers * (unit_cat_l_mm / 1000)
     t_wall_m = t_wall_mil * 2.54e-5
     pitch = np.sqrt(1/cpsi) * 0.0254
     d_h = pitch - t_wall_m
     ofa = (d_h / pitch)**2
+    
     def calculate(v_pos_cm, has_vane):
         area_ratio = area_install / area_pipe
         if has_vane:
@@ -269,6 +276,7 @@ def calculate_logic(inputs):
         f_ch = 56.9 / ((rho * v_ch_eff * d_h) / mu)
         dp_cat = f_ch * (total_cat_length_m / d_h) * (rho * v_ch_eff**2 / 2)
         return float((dp_form + dp_cat) / 1000), float(gamma)
+    
     dp_v, g_v = calculate(vane_pos_cm_default, True)
     dp_nv, g_nv = calculate(vane_pos_cm_default, False)
     pos_range = np.linspace(0, 100, 20)
@@ -277,6 +285,7 @@ def calculate_logic(inputs):
         d, g = calculate(p, True)
         opt_dp.append(d); opt_gamma.append(g)
     return {"dp_v": dp_v, "g_v": g_v, "dp_nv": dp_nv, "g_nv": g_nv, "opt_pos": pos_range.tolist(), "opt_dp": opt_dp, "opt_gamma": opt_gamma}
+
 calculate_logic(${JSON.stringify(inputs)})
 `;
         try {
