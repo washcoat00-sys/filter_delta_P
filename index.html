@@ -142,36 +142,28 @@
 
         <!-- 유동 분석 모드 (새로운 레이아웃) -->
         <div id="flow-content" class="main-layout" style="display: none;">
-            <aside class="layout-col col-inputs" style="justify-content: center; align-items: center;">
-                <div class="btn-group-vertical" style="width: 100%;">
-                    <button id="run-flow-btn" class="primary-btn flow-run-large">🌪️ 유동 분석 실행</button>
-                </div>
-            </aside>
+            <div class="layout-col flow-center-container">
+                <button id="run-flow-btn" class="primary-btn flow-run-large">
+                    <span style="font-size: 4rem;">🌪️</span>
+                    <span>유동 분석 실행</span>
+                </button>
+            </div>
             
             <main class="layout-col col-results">
                 <div class="results-container">
                     <h3>공학 해석 리포트</h3>
                     <div id="flow-results-content">
-                        <div class="placeholder-msg">분석 실행 버튼을 눌러주세요.</div>
+                        <div class="placeholder-msg">실행 버튼을 눌러주세요.</div>
                     </div>
                 </div>
             </main>
             
             <section class="layout-col col-graph">
                 <div class="graph-box">
-                    <h3>분석 결과 시각화</h3>
-                    <div class="chart-wrapper">
-                        <canvas id="flowChartBPBar"></canvas>
-                    </div>
-                    <div class="chart-wrapper" style="margin-top: 10px;">
-                        <canvas id="flowChartUniformBar"></canvas>
-                    </div>
-                    <div class="chart-wrapper" style="margin-top: 10px;">
-                        <canvas id="flowChartBPOpt"></canvas>
-                    </div>
-                    <div class="chart-wrapper" style="margin-top: 10px;">
-                        <canvas id="flowChartUniformOpt"></canvas>
-                    </div>
+                    <div class="chart-wrapper"><canvas id="flowChartBPBar"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="flowChartUniformBar"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="flowChartBPOpt"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="flowChartUniformOpt"></canvas></div>
                 </div>
             </section>
         </div>

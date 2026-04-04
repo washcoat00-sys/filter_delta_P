@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
     });
 
-    // --- [차압 분석 로직] --- (기존 유지)
+    // --- [차압 분석 로직] ---
     const analyzeBtn = document.getElementById('analyze-btn');
     const graphBtn = document.getElementById('graph-btn');
     const resultsContent = document.getElementById('results-content');
@@ -81,20 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = {};
         for (const id of ids) {
             const el = document.getElementById(id);
-            if (!el) return null;
+            if (!el) continue;
             const val = parseFloat(el.value);
-            if (isNaN(val)) return null;
-            data[id] = val;
+            data[id] = isNaN(val) ? 0 : val;
         }
         const k2El = document.getElementById('k2');
-        if (!k2El || isNaN(parseFloat(k2El.value))) return null;
-        data['k2'] = k2El.value;
+        data['k2'] = k2El ? k2El.value : "2.0e-14";
         return data;
     }
 
-    analyzeBtn.addEventListener('click', () => {
+    if(analyzeBtn) analyzeBtn.addEventListener('click', () => {
         const d = getInputs();
-        if (!d) return;
         const vol_L = (d.width_mm * d.height_mm * d.depth_mm) / 1e6;
         const curr_ash_gL = Math.max(0, (d.weight_after_regen - d.weight_clean) * 1000) / vol_L;
         const curr_soot_gL = Math.max(0, (d.weight_soot_loaded - d.weight_after_regen) * 1000) / vol_L;
@@ -117,19 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'result-card';
             card.style.borderLeftColor = state.color;
-            card.style.animationDelay = `${index * 0.1}s`; 
-            card.innerHTML = `
-                <strong style="color:${state.color}">${state.title}</strong>
-                <p>ΔP: ${info.dp.toFixed(3)} kPa</p>
-                <p>P2: ${info.p2.toFixed(3)} kPa${info.status}</p>
-            `;
+            card.innerHTML = `<strong style="color:${state.color}">${state.title}</strong><p>ΔP: ${info.dp.toFixed(3)} kPa</p><p>P2: ${info.p2.toFixed(3)} kPa${info.status}</p>`;
             resultsContent.appendChild(card);
         });
     });
 
-    graphBtn.addEventListener('click', () => {
+    if(graphBtn) graphBtn.addEventListener('click', () => {
         const d = getInputs();
-        if (!d) return;
         const vol_L = (d.width_mm * d.height_mm * d.depth_mm) / 1e6;
         const curr_ash_gL = Math.max(0, (d.weight_after_regen - d.weight_clean) * 1000) / vol_L;
         const curr_soot_gL = Math.max(0, (d.weight_soot_loaded - d.weight_after_regen) * 1000) / vol_L;
@@ -150,13 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { label: 'Current Point', data: [{ x: curr_soot_gL.toFixed(2), y: currDP }], backgroundColor: '#ff3d00', borderColor: '#fff', pointRadius: 8, showLine: false }
                 ]
             },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    x: { type: 'linear', title: { display: true, text: 'Soot Loading (g/L)' } },
-                    y: { beginAtZero: true, title: { display: true, text: 'ΔP (kPa)' } }
-                }
-            }
+            options: { responsive: true, maintainAspectRatio: false }
         });
     });
 
@@ -165,17 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const runFlowBtn = document.getElementById('run-flow-btn');
     const flowResultsContent = document.getElementById('flow-results-content');
     
-    // 차트 변수들
-    let flowChartBPBar = null;
-    let flowChartUniformBar = null;
-    let flowChartBPOpt = null;
-    let flowChartUniformOpt = null;
+    let flowChartBPBar = null, flowChartUniformBar = null, flowChartBPOpt = null, flowChartUniformOpt = null;
 
-    // 기본 파라미터값 (입력창 삭제로 인해 고정값 사용)
-    const flowDefaults = [
-        12000.0, 20.0, 800.0, 100.0, 100.0, 47.0, 100.0, 120.0, 15.7, 
-        2.2, 2.0, 8.0, 10.0, 10.0, 2.0, 0.52, 50.0, 30.0
-    ];
+    const flowDefaults = [12000.0, 20.0, 800.0, 100.0, 100.0, 47.0, 100.0, 120.0, 15.7, 2.2, 2.0, 8.0, 10.0, 10.0, 2.0, 0.52, 50.0, 30.0];
 
     async function initPyodide() {
         try {
@@ -185,31 +162,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initPyodide();
 
-    runFlowBtn.addEventListener('click', async () => {
-        if (!pyodide) { alert("Pyodide 준비 중입니다."); return; }
-        
-        // 입력창이 삭제되었으므로 flowDefaults를 직접 사용
-        const inputs = flowDefaults;
-        
+    if(runFlowBtn) runFlowBtn.addEventListener('click', async () => {
+        if (!pyodide) { alert("시스템 로딩 중입니다."); return; }
         const pythonCode = `
 import numpy as np
 def calculate_logic(inputs):
-    # 0:CMM, 1:Temp, 2:PipeDia, 3:CatW, 4:CatH, 5:ConeAngle, 6:CatL, 7:CPSI, 8:WallMil, 9:InstW, 10:InstH, 11:Layers, 12:Gap, 13:V_Cnt, 14:V_Thick, 15:V_Area, 16:V_Angle, 17:V_Pos
     m_flow_cmm, temp_c, d_pipe_mm, cat_w_mm, cat_h_mm, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, inst_w_m, inst_h_m, num_layers, cat_gap_cm, vane_count, vane_thick_mm, vane_surface_m2, vane_angle_deg, vane_pos_cm_default = inputs
-    
     temp_k = temp_c + 273.15
     rho = 101325 / (287.05 * temp_k)
     mu = 1.716e-5 * (temp_k/273.15)**1.5 * (273.15+110.4)/(temp_k+110.4)
     area_pipe = np.pi * (d_pipe_mm/1000.0)**2 / 4.0
-    
     area_install = (cat_w_mm / 1000.0) * (cat_h_mm / 1000.0)
-    
     total_cat_length_m = num_layers * (unit_cat_l_mm / 1000.0)
     t_wall_m = t_wall_mil * 2.54e-5
     pitch = np.sqrt(1.0/cpsi) * 0.0254
     d_h = pitch - t_wall_m
     ofa = (d_h / pitch)**2
-    
     def calculate(v_pos_cm, has_vane):
         area_ratio = area_install / area_pipe
         if has_vane:
@@ -219,7 +187,6 @@ def calculate_logic(inputs):
         else:
             gamma = max(0.35, 1.0 - (0.006 * (inlet_angle_half * 2.0) * np.log10(area_ratio)))
             vane_loss = 0.0
-            
         v_pipe = (m_flow_cmm / 60.0) / area_pipe
         dp_form = (0.5 * rho * v_pipe**2) * (0.5 + vane_loss)
         v_ch_eff = ((m_flow_cmm / 60.0) / (area_install * ofa)) * (2.0 - gamma)
@@ -227,22 +194,16 @@ def calculate_logic(inputs):
         if re_ch < 1e-5: re_ch = 1e-5
         f_ch = 56.9 / re_ch
         dp_cat = f_ch * (total_cat_length_m / d_h) * (rho * v_ch_eff**2 / 2.0)
-        
-        dp_total_kpa = (dp_form + dp_cat) / 1000.0
-        return float(dp_total_kpa), float(gamma)
-    
+        return float((dp_form + dp_cat) / 1000.0), float(gamma)
     dp_v, g_v = calculate(vane_pos_cm_default, True)
     dp_nv, g_nv = calculate(vane_pos_cm_default, False)
-    
     pos_range = np.linspace(0, 100, 20)
     opt_dp, opt_gamma = [], []
     for p in pos_range:
         d, g = calculate(p, True)
         opt_dp.append(d); opt_gamma.append(g)
-        
     return {"dp_v": dp_v, "g_v": g_v, "dp_nv": dp_nv, "g_nv": g_nv, "opt_pos": pos_range.tolist(), "opt_dp": opt_dp, "opt_gamma": opt_gamma}
-
-calculate_logic(${JSON.stringify(inputs)})
+calculate_logic(${JSON.stringify(flowDefaults)})
 `;
         try {
             const res = (await pyodide.runPythonAsync(pythonCode)).toJs({dict_converter: Object.fromEntries});
@@ -255,15 +216,15 @@ calculate_logic(${JSON.stringify(inputs)})
         const gain = ((res.dp_nv - res.dp_v) / res.dp_nv * 100).toFixed(1);
         flowResultsContent.innerHTML = `
             <div class="result-card" style="border-left-color: var(--primary)">
-                <strong>배압 분석 결과 (Backpressure)</strong>
-                <p>베인 적용 시: ${res.dp_v.toFixed(3)} kPa</p>
-                <p>베인 미적용: ${res.dp_nv.toFixed(3)} kPa</p>
-                <p style="color:var(--secondary); font-weight:700">개선 효과: ${gain}%</p>
+                <strong>배압 (Backpressure)</strong>
+                <p>With Vane: ${res.dp_v.toFixed(3)} kPa</p>
+                <p>No Vane: ${res.dp_nv.toFixed(3)} kPa</p>
+                <p style="color:var(--secondary); font-weight:700">개선: ${gain}%</p>
             </div>
             <div class="result-card" style="border-left-color: var(--secondary)">
-                <strong>유동 균일도 (Uniformity γ)</strong>
-                <p>베인 적용 시: ${res.g_v.toFixed(3)}</p>
-                <p>베인 미적용: ${res.g_nv.toFixed(3)}</p>
+                <strong>균일도 (Uniformity γ)</strong>
+                <p>With Vane: ${res.g_v.toFixed(3)}</p>
+                <p>No Vane: ${res.g_nv.toFixed(3)}</p>
             </div>
         `;
     }
@@ -274,44 +235,16 @@ calculate_logic(${JSON.stringify(inputs)})
         if (flowChartBPOpt) flowChartBPOpt.destroy();
         if (flowChartUniformOpt) flowChartUniformOpt.destroy();
 
-        const ctx1 = document.getElementById('flowChartBPBar').getContext('2d');
-        flowChartBPBar = new Chart(ctx1, {
-            type: 'bar',
-            data: {
-                labels: ['With Vane', 'No Vane'],
-                datasets: [{ label: 'Backpressure (kPa)', data: [res.dp_v, res.dp_nv], backgroundColor: ['#0062ff', '#94a3b8'], borderRadius: 6 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+        const barCtx1 = document.getElementById('flowChartBPBar').getContext('2d');
+        flowChartBPBar = new Chart(barCtx1, { type: 'bar', data: { labels: ['With Vane', 'No Vane'], datasets: [{ label: 'BP (kPa)', data: [res.dp_v, res.dp_nv], backgroundColor: ['#0062ff', '#94a3b8'] }] }, options: { responsive: true, maintainAspectRatio: false } });
 
-        const ctx2 = document.getElementById('flowChartUniformBar').getContext('2d');
-        flowChartUniformBar = new Chart(ctx2, {
-            type: 'bar',
-            data: {
-                labels: ['With Vane', 'No Vane'],
-                datasets: [{ label: 'Uniformity (γ)', data: [res.g_v, res.g_nv], backgroundColor: ['#00c853', '#cbd5e1'], borderRadius: 6 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.0 } } }
-        });
+        const barCtx2 = document.getElementById('flowChartUniformBar').getContext('2d');
+        flowChartUniformBar = new Chart(barCtx2, { type: 'bar', data: { labels: ['With Vane', 'No Vane'], datasets: [{ label: 'Gamma (γ)', data: [res.g_v, res.g_nv], backgroundColor: ['#00c853', '#cbd5e1'] }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.0 } } } });
 
-        const ctx3 = document.getElementById('flowChartBPOpt').getContext('2d');
-        flowChartBPOpt = new Chart(ctx3, {
-            type: 'line',
-            data: {
-                labels: res.opt_pos.map(p => p.toFixed(0)),
-                datasets: [{ label: 'BP Optimization (kPa)', data: res.opt_dp, borderColor: '#ff3d00', tension: 0.4 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Pressure (kPa)' } } } }
-        });
+        const optCtx1 = document.getElementById('flowChartBPOpt').getContext('2d');
+        flowChartBPOpt = new Chart(optCtx1, { type: 'line', data: { labels: res.opt_pos.map(p => p.toFixed(0)), datasets: [{ label: 'BP Opt (kPa)', data: res.opt_dp, borderColor: '#ff3d00', tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false } });
 
-        const ctx4 = document.getElementById('flowChartUniformOpt').getContext('2d');
-        flowChartUniformOpt = new Chart(ctx4, {
-            type: 'line',
-            data: {
-                labels: res.opt_pos.map(p => p.toFixed(0)),
-                datasets: [{ label: 'Uniformity (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], tension: 0.4 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.0, title: { display: true, text: 'Gamma (γ)' } } } }
-        });
+        const optCtx2 = document.getElementById('flowChartUniformOpt').getContext('2d');
+        flowChartUniformOpt = new Chart(optCtx2, { type: 'line', data: { labels: res.opt_pos.map(p => p.toFixed(0)), datasets: [{ label: 'Uniformity Opt', data: res.opt_gamma, borderColor: '#00c853', tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.0 } } } });
     }
 });
