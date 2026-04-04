@@ -13,6 +13,8 @@ function switchMode(mode) {
     const deltapContent = document.getElementById('deltap-content');
     const flowContent = document.getElementById('flow-content');
 
+    if (!deltapTab || !flowTab || !deltapContent || !flowContent) return;
+
     if (mode === 'deltap') {
         deltapTab.classList.add('active');
         flowTab.classList.remove('active');
@@ -26,13 +28,15 @@ function switchMode(mode) {
     }
 }
 
-// 외부 HTML 로드 함수
+// 외부 HTML 로드 함수 (개선됨)
 async function loadContent() {
     try {
-        const [dpRes, flowRes] = await Promise.all([
-            fetch('deltaP.html'),
-            fetch('flow.html')
-        ]);
+        const dpRes = await fetch('deltaP.html');
+        const flowRes = await fetch('flow.html');
+        
+        if (!dpRes.ok || !flowRes.ok) {
+            throw new Error(`HTTP error! status: ${dpRes.status} / ${flowRes.status}`);
+        }
         
         const dpHtml = await dpRes.text();
         const flowHtml = await flowRes.text();
@@ -40,15 +44,22 @@ async function loadContent() {
         document.getElementById('deltap-content').innerHTML = dpHtml;
         document.getElementById('flow-content').innerHTML = flowHtml;
         
+        console.log("HTML Modules Loaded Successfully");
         return true;
     } catch (e) {
-        console.error("Content loading failed", e);
+        console.error("Content loading failed:", e);
+        const errorMsg = `<div class="placeholder-msg" style="color: var(--accent);">
+            ⚠️ 모듈 로드 실패 (서버 환경 필요)<br>
+            <small>${e.message}</small>
+        </div>`;
+        document.getElementById('deltap-content').innerHTML = errorMsg;
+        document.getElementById('flow-content').innerHTML = errorMsg;
         return false;
     }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. HTML 조각 로드
+    // 1. HTML 조각 로드 완료 대기
     const success = await loadContent();
     if (!success) return;
 
@@ -57,16 +68,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const container = document.getElementById(containerId);
         const resizer1 = document.getElementById(resizerId1);
         const resizer2 = document.getElementById(resizerId2);
+        if (!container || !resizer1 || !resizer2) return;
         
         let activeResizer = null;
-
         const startResizing = (e, resizer) => {
             activeResizer = resizer;
             document.body.style.cursor = 'col-resize';
             resizer.classList.add('active');
             e.preventDefault();
         };
-
         const stopResizing = () => {
             if (activeResizer) {
                 activeResizer.classList.remove('active');
@@ -74,7 +84,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.body.style.cursor = 'default';
             }
         };
-
         const resize = (e) => {
             if (!activeResizer) return;
             const containerRect = container.getBoundingClientRect();
@@ -92,7 +101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             container.style.gridTemplateColumns = cols.join(' ');
             window.dispatchEvent(new Event('resize'));
         };
-
         resizer1.addEventListener('mousedown', (e) => startResizing(e, resizer1));
         resizer2.addEventListener('mousedown', (e) => startResizing(e, resizer2));
         document.addEventListener('mousemove', resize);
@@ -104,10 +112,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- [공통 요소] ---
     const themeToggle = document.getElementById('theme-toggle');
-    themeToggle.addEventListener('click', () => {
-        const isDark = document.documentElement.classList.toggle('dark-mode');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    });
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+    }
 
     // --- [차압 분석 로직] ---
     const combinedAnalyzeBtn = document.getElementById('combined-analyze-btn');
@@ -184,50 +194,57 @@ document.addEventListener('DOMContentLoaded', async () => {
             { title: `Current Loading (${curr_soot_gL.toFixed(2)} g/L)`, soot: curr_soot_gL, ash: curr_ash_gL, color: "#0062ff" },
             { title: "After Regen", soot: 0, ash: curr_ash_gL, color: "#ff3d00" }
         ];
-        resP1.textContent = d.amb_kpa.toFixed(3);
-        resultsContent.innerHTML = '';
-        states.forEach((state, index) => {
-            const info = getInfo(state.soot, state.ash);
-            const card = document.createElement('div');
-            card.className = 'result-card';
-            card.style.borderLeftColor = state.color;
-            card.style.animationDelay = `${index * 0.1}s`; 
-            card.innerHTML = `
-                <strong style="color:${state.color}">${state.title}</strong>
-                <p>ΔP: ${info.dp.toFixed(3)} kPa</p>
-                <p>P2: ${info.p2.toFixed(3)} kPa${info.status}</p>
-            `;
-            resultsContent.appendChild(card);
-        });
+        if (resP1) resP1.textContent = d.amb_kpa.toFixed(3);
+        if (resultsContent) {
+            resultsContent.innerHTML = '';
+            states.forEach((state, index) => {
+                const info = getInfo(state.soot, state.ash);
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.style.borderLeftColor = state.color;
+                card.style.animationDelay = `${index * 0.1}s`; 
+                card.innerHTML = `
+                    <strong style="color:${state.color}">${state.title}</strong>
+                    <p>ΔP: ${info.dp.toFixed(3)} kPa</p>
+                    <p>P2: ${info.p2.toFixed(3)} kPa${info.status}</p>
+                `;
+                resultsContent.appendChild(card);
+            });
+        }
         const sootRange = [];
         for (let i = 0; i <= 50; i++) sootRange.push(i * 0.2);
         const yClean = sootRange.map(s => getDP(d, s, 0) / 1000.0);
         const yAsh = sootRange.map(s => getDP(d, s, curr_ash_gL) / 1000.0);
         const currDP = getDP(d, curr_soot_gL, curr_ash_gL) / 1000.0;
         if (myChart) myChart.destroy();
-        const ctx = document.getElementById('dpfChart').getContext('2d');
-        myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: sootRange.map(s => s.toFixed(1)),
-                datasets: [
-                    { label: 'Clean + Exit Loss', data: yClean, borderColor: '#00c853', borderDash: [5, 5], fill: false, tension: 0.4 },
-                    { label: `With Ash (${curr_ash_gL.toFixed(2)}g/L)`, data: yAsh, borderColor: '#0062ff', fill: true, backgroundColor: 'rgba(0, 98, 255, 0.05)', tension: 0.4 },
-                    { label: 'Current Point', data: [{ x: curr_soot_gL.toFixed(2), y: currDP }], backgroundColor: '#ff3d00', borderColor: '#fff', pointRadius: 8, showLine: false }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { font: { family: 'Pretendard', weight: '600' } } } },
-                scales: {
-                    x: { type: 'linear', title: { display: true, text: 'Soot Loading (g/L)' }, grid: { display: false } },
-                    y: { beginAtZero: true, title: { display: true, text: 'ΔP (kPa)' } }
+        const chartCanvas = document.getElementById('dpfChart');
+        if (chartCanvas) {
+            const ctx = chartCanvas.getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sootRange.map(s => s.toFixed(1)),
+                    datasets: [
+                        { label: 'Clean + Exit Loss', data: yClean, borderColor: '#00c853', borderDash: [5, 5], fill: false, tension: 0.4 },
+                        { label: `With Ash (${curr_ash_gL.toFixed(2)}g/L)`, data: yAsh, borderColor: '#0062ff', fill: true, backgroundColor: 'rgba(0, 98, 255, 0.05)', tension: 0.4 },
+                        { label: 'Current Point', data: [{ x: curr_soot_gL.toFixed(2), y: currDP }], backgroundColor: '#ff3d00', borderColor: '#fff', pointRadius: 8, showLine: false }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { font: { family: 'Pretendard', weight: '600' } } } },
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: 'Soot Loading (g/L)' }, grid: { display: false } },
+                        y: { beginAtZero: true, title: { display: true, text: 'ΔP (kPa)' } }
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
-    combinedAnalyzeBtn.addEventListener('click', performAnalysis);
+    if (combinedAnalyzeBtn) {
+        combinedAnalyzeBtn.addEventListener('click', performAnalysis);
+    }
 
     // --- [유동 분석 로직] ---
     let pyodide = null;
@@ -253,7 +270,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         12000.0, 20.0, 800.0, 100.0, 47.0, 100.0, 120.0, 15.7, 2.2, 
         2.0, 8.0, 10.0, 10.0, 2.0, 0.52, 50.0, 30.0
     ];
-
     const flowGroups = [
         { title: "운전 조건", indices: [0, 1] },
         { title: "필터 및 배관", indices: [2, 3, 4, 5, 6, 7] },
@@ -261,24 +277,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         { title: "Vane 제원", indices: [12, 13, 14, 15, 16] }
     ];
 
-    flowGroups.forEach(group => {
-        const groupSection = document.createElement('div');
-        groupSection.className = 'flow-input-group';
-        groupSection.innerHTML = `<h4 class="group-title">${group.title}</h4>`;
-        const gridContainer = document.createElement('div');
-        gridContainer.className = 'flow-grid-container';
-        group.indices.forEach(i => {
-            const item = document.createElement('div');
-            item.className = 'flow-input-item';
-            item.innerHTML = `
-                <label>${flowLabels[i]}</label>
-                <input type="number" id="flow_p_${i}" value="${flowDefaults[i]}">
-            `;
-            gridContainer.appendChild(item);
+    if (flowParamsContainer) {
+        flowGroups.forEach(group => {
+            const groupSection = document.createElement('div');
+            groupSection.className = 'flow-input-group';
+            groupSection.innerHTML = `<h4 class="group-title">${group.title}</h4>`;
+            const gridContainer = document.createElement('div');
+            gridContainer.className = 'flow-grid-container';
+            group.indices.forEach(i => {
+                const item = document.createElement('div');
+                item.className = 'flow-input-item';
+                item.innerHTML = `
+                    <label>${flowLabels[i]}</label>
+                    <input type="number" id="flow_p_${i}" value="${flowDefaults[i]}">
+                `;
+                gridContainer.appendChild(item);
+            });
+            groupSection.appendChild(gridContainer);
+            flowParamsContainer.appendChild(groupSection);
         });
-        groupSection.appendChild(gridContainer);
-        flowParamsContainer.appendChild(groupSection);
-    });
+    }
 
     async function initPyodide() {
         try {
@@ -289,20 +307,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     initPyodide();
 
-    pyUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            fileNameDisplay.textContent = file.name;
-            const reader = new FileReader();
-            reader.onload = (ev) => { pyScriptContent = ev.target.result; };
-            reader.readAsText(file);
-        }
-    });
+    if (pyUpload) {
+        pyUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (fileNameDisplay) fileNameDisplay.textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = (ev) => { pyScriptContent = ev.target.result; };
+                reader.readAsText(file);
+            }
+        });
+    }
 
-    runFlowBtn.addEventListener('click', async () => {
-        if (!pyodide) return;
-        const inputs = flowLabels.map((_, i) => parseFloat(document.getElementById(`flow_p_${i}`).value));
-        const pythonCode = `
+    if (runFlowBtn) {
+        runFlowBtn.addEventListener('click', async () => {
+            if (!pyodide) return;
+            const inputs = flowLabels.map((_, i) => parseFloat(document.getElementById(`flow_p_${i}`).value));
+            const pythonCode = `
 import numpy as np
 def calculate_logic(inputs):
     m_flow_cmm, temp_c, d_pipe_mm, cat_dia_mm, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, install_w_m, install_h_m, num_layers, cat_gap_cm, vane_count, vane_thick_mm, vane_surface_m2, vane_angle_deg, vane_pos_cm_default = inputs
@@ -312,7 +333,7 @@ def calculate_logic(inputs):
     area_pipe = np.pi * (d_pipe_mm/1000)**2 / 4
     area_install = install_w_m * install_h_m
     total_cat_length_m = num_layers * (unit_cat_l_mm / 1000)
-    t_wall_m = t_wall_m = t_wall_mil * 2.54e-5
+    t_wall_m = t_wall_mil * 2.54e-5
     pitch = np.sqrt(1/cpsi) * 0.0254
     d_h = pitch - t_wall_m
     ofa = (d_h / pitch)**2
@@ -341,14 +362,16 @@ def calculate_logic(inputs):
     return {"dp_v": dp_v, "g_v": g_v, "dp_nv": dp_nv, "g_nv": g_nv, "opt_pos": pos_range.tolist(), "opt_dp": opt_dp, "opt_gamma": opt_gamma}
 calculate_logic(${JSON.stringify(inputs)})
 `;
-        try {
-            const res = (await pyodide.runPythonAsync(pythonCode)).toJs({dict_converter: Object.fromEntries});
-            displayFlowResults(res);
-            drawFlowCharts(res);
-        } catch (e) { console.error(e); }
-    });
+            try {
+                const res = (await pyodide.runPythonAsync(pythonCode)).toJs({dict_converter: Object.fromEntries});
+                displayFlowResults(res);
+                drawFlowCharts(res);
+            } catch (e) { console.error(e); }
+        });
+    }
 
     function displayFlowResults(res) {
+        if (!flowResultsContent) return;
         const gain = ((res.dp_nv - res.dp_v) / res.dp_nv * 100).toFixed(1);
         flowResultsContent.innerHTML = `
             <div class="result-card" style="border-left-color: var(--primary)">
@@ -369,58 +392,58 @@ calculate_logic(${JSON.stringify(inputs)})
         if (flowChartDP) flowChartDP.destroy();
         if (flowChartGamma) flowChartGamma.destroy();
         if (flowChartOpt) flowChartOpt.destroy();
-        const ctxDP = document.getElementById('flowChartDP').getContext('2d');
-        flowChartDP = new Chart(ctxDP, {
-            type: 'bar',
-            data: {
-                labels: ['With Vane', 'No Vane'],
-                datasets: [{
-                    label: 'Backpressure (kPa)',
-                    data: [res.dp_v, res.dp_nv],
-                    backgroundColor: ['#0062ff', '#94a3b8'],
-                    borderRadius: 8
-                }]
-            },
-            options: { 
-                responsive: true, maintainAspectRatio: false,
-                plugins: { title: { display: true, text: '베인 유무에 따른 배압 비교' } }
-            }
-        });
-        const ctxGamma = document.getElementById('flowChartGamma').getContext('2d');
-        flowChartGamma = new Chart(ctxGamma, {
-            type: 'bar',
-            data: {
-                labels: ['With Vane', 'No Vane'],
-                datasets: [{
-                    label: 'Uniformity (γ)',
-                    data: [res.g_v, res.g_nv],
-                    backgroundColor: ['#00c853', '#cbd5e1'],
-                    borderRadius: 8
-                }]
-            },
-            options: { 
-                responsive: true, maintainAspectRatio: false,
-                plugins: { title: { display: true, text: '베인 유무에 따른 유동 균일도 비교' } }
-            }
-        });
-        const ctxOpt = document.getElementById('flowChartOpt').getContext('2d');
-        flowChartOpt = new Chart(ctxOpt, {
-            type: 'line',
-            data: {
-                labels: res.opt_pos.map(p => p.toFixed(0)),
-                datasets: [
-                    { label: 'ΔP (kPa)', data: res.opt_dp, borderColor: '#ff3d00', yAxisID: 'y', tension: 0.4 },
-                    { label: 'Gamma (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], yAxisID: 'y1', tension: 0.4 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { title: { display: true, text: '베인 위치에 따른 성능 변화' } },
-                scales: {
-                    y: { type: 'linear', position: 'left', title: { display: true, text: 'Pressure' } },
-                    y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Uniformity' } }
+        const ctxDP = document.getElementById('flowChartDP')?.getContext('2d');
+        if (ctxDP) {
+            flowChartDP = new Chart(ctxDP, {
+                type: 'bar',
+                data: {
+                    labels: ['With Vane', 'No Vane'],
+                    datasets: [{
+                        label: 'Backpressure (kPa)',
+                        data: [res.dp_v, res.dp_nv],
+                        backgroundColor: ['#0062ff', '#94a3b8'],
+                        borderRadius: 8
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '베인 유무에 따른 배압 비교' } } }
+            });
+        }
+        const ctxGamma = document.getElementById('flowChartGamma')?.getContext('2d');
+        if (ctxGamma) {
+            flowChartGamma = new Chart(ctxGamma, {
+                type: 'bar',
+                data: {
+                    labels: ['With Vane', 'No Vane'],
+                    datasets: [{
+                        label: 'Uniformity (γ)',
+                        data: [res.g_v, res.g_nv],
+                        backgroundColor: ['#00c853', '#cbd5e1'],
+                        borderRadius: 8
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '베인 유무에 따른 유동 균일도 비교' } } }
+            });
+        }
+        const ctxOpt = document.getElementById('flowChartOpt')?.getContext('2d');
+        if (ctxOpt) {
+            flowChartOpt = new Chart(ctxOpt, {
+                type: 'line',
+                data: {
+                    labels: res.opt_pos.map(p => p.toFixed(0)),
+                    datasets: [
+                        { label: 'ΔP (kPa)', data: res.opt_dp, borderColor: '#ff3d00', yAxisID: 'y', tension: 0.4 },
+                        { label: 'Gamma (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], yAxisID: 'y1', tension: 0.4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '베인 위치에 따른 성능 변화' } },
+                    scales: {
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'Pressure' } },
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Uniformity' } }
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 });
