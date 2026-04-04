@@ -190,11 +190,33 @@ document.addEventListener('DOMContentLoaded', () => {
         2.0, 8.0, 10.0, 10.0, 2.0, 0.52, 50.0, 30.0
     ];
 
-    flowLabels.forEach((label, i) => {
-        const row = document.createElement('div');
-        row.className = 'form-row';
-        row.innerHTML = `<span>${label}</span><input type="number" id="flow_p_${i}" value="${flowDefaults[i]}">`;
-        flowParamsContainer.appendChild(row);
+    const flowGroups = [
+        { title: "운전 조건", indices: [0, 1] },
+        { title: "필터 및 배관", indices: [2, 3, 4, 5, 6, 7] },
+        { title: "설치 제원", indices: [8, 9, 10, 11] },
+        { title: "Vane 제원", indices: [12, 13, 14, 15, 16] }
+    ];
+
+    flowGroups.forEach(group => {
+        const groupSection = document.createElement('div');
+        groupSection.className = 'flow-input-group';
+        groupSection.innerHTML = `<h4 class="group-title">${group.title}</h4>`;
+        
+        const gridContainer = document.createElement('div');
+        gridContainer.className = 'flow-grid-container';
+        
+        group.indices.forEach(i => {
+            const item = document.createElement('div');
+            item.className = 'flow-input-item';
+            item.innerHTML = `
+                <label>${flowLabels[i]}</label>
+                <input type="number" id="flow_p_${i}" value="${flowDefaults[i]}">
+            `;
+            gridContainer.appendChild(item);
+        });
+        
+        groupSection.appendChild(gridContainer);
+        flowParamsContainer.appendChild(groupSection);
     });
 
     async function initPyodide() {

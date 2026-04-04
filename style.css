@@ -226,9 +226,53 @@ input:focus {
     padding: 8px 4px !important;
     text-align: center;
 }
+/* Flow Analysis Specific Styles */
+.flow-input-group {
+    margin-bottom: 20px;
+}
+
+.group-title {
+    font-size: 0.8rem;
+    color: var(--primary);
+    margin: 10px 0 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+}
+
+.flow-grid-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 기본 2열 배치 */
+    gap: 12px;
+}
+
+.flow-input-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.flow-input-item label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.flow-input-item input {
+    width: 100% !important; /* 개별 아이템 너비 전체 확보 */
+    max-width: none !important;
+    padding: 6px 8px;
+    font-size: 0.85rem;
+}
+
+@media (min-width: 1400px) {
+    .flow-grid-container {
+        grid-template-columns: repeat(3, 1fr); /* 화면이 충분히 넓으면 3열 배치 */
+    }
+}
 
 /* Buttons */
 .primary-btn, .secondary-btn {
+...
     border: none;
     padding: 14px;
     border-radius: 12px;
