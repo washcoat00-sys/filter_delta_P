@@ -279,11 +279,57 @@ input:focus {
     min-height: 350px;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+/* 2열 배치 및 그룹화 스타일 */
+.params-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+}
+
+.param-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.dark-mode .param-group {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.param-group-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.param-group-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.form-row.compact {
+    margin-bottom: 8px;
+}
+
+.form-row.compact span {
+    font-size: 0.8rem;
+    flex: 1.5;
+}
+
+.form-row.compact input {
+    width: 80px;
+    padding: 6px;
+    font-size: 0.85rem;
+}
 
 /* Status Badge */
 #py-status {
