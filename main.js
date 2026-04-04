@@ -228,8 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- [유동 분석 로직] ---
     let pyodide = null;
     let pyScriptContent = "";
-    const pyUpload = document.getElementById('py-upload');
-    const fileNameDisplay = document.getElementById('file-name');
     const flowParamsContainer = document.getElementById('flow-params-container');
     const runFlowBtn = document.getElementById('run-flow-btn');
     const flowResultsContent = document.getElementById('flow-results-content');
@@ -287,16 +285,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error("Pyodide Load Error", e); }
     }
     initPyodide();
-
-    pyUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            fileNameDisplay.textContent = file.name;
-            const reader = new FileReader();
-            reader.onload = (ev) => { pyScriptContent = ev.target.result; };
-            reader.readAsText(file);
-        }
-    });
 
     runFlowBtn.addEventListener('click', async () => {
         if (!pyodide) return;
