@@ -6,6 +6,9 @@
     }
 })();
 
+// Chart.js 플러그인 등록 (데이터 레이블 표시용)
+Chart.register(ChartDataLabels);
+
 // 전역 모드 전환 함수
 function switchMode(mode) {
     const deltapTab = document.getElementById('tab-deltap');
@@ -31,29 +34,20 @@ function switchMode(mode) {
 // 외부 HTML 로드 함수 (상수 기반으로 변경하여 로컬 실행 지원)
 async function loadContent() {
     try {
-        // modules.js에 정의된 상수를 사용 (fetch 차단 방지)
         if (typeof deltaP_HTML !== 'undefined' && typeof flow_HTML !== 'undefined') {
             document.getElementById('deltap-content').innerHTML = deltaP_HTML;
             document.getElementById('flow-content').innerHTML = flow_HTML;
-            console.log("HTML Modules Loaded from Modules.js");
             return true;
         } else {
             throw new Error("Modules not defined");
         }
     } catch (e) {
         console.error("Content loading failed:", e);
-        const errorMsg = `<div class="placeholder-msg" style="color: var(--accent);">
-            ⚠️ 모듈 로드 실패 (modules.js 확인 필요)<br>
-            <small>${e.message}</small>
-        </div>`;
-        document.getElementById('deltap-content').innerHTML = errorMsg;
-        document.getElementById('flow-content').innerHTML = errorMsg;
         return false;
     }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. HTML 조각 로드 완료 대기
     const success = await loadContent();
     if (!success) return;
 
@@ -63,7 +57,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resizer1 = document.getElementById(resizerId1);
         const resizer2 = document.getElementById(resizerId2);
         if (!container || !resizer1 || !resizer2) return;
-        
         let activeResizer = null;
         const startResizing = (e, resizer) => {
             activeResizer = resizer;
@@ -226,7 +219,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { labels: { font: { family: 'Pretendard', weight: '600' } } } },
+                    plugins: { 
+                        legend: { labels: { font: { family: 'Pretendard', weight: '600' } } },
+                        datalabels: { display: false } // 차압 분석 그래프에서는 레이블 숨김
+                    },
                     scales: {
                         x: { type: 'linear', title: { display: true, text: 'Soot Loading (g/L)' }, grid: { display: false } },
                         y: { beginAtZero: true, title: { display: true, text: 'ΔP (kPa)' } }
@@ -243,8 +239,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- [유동 분석 로직] ---
     let pyodide = null;
     let pyScriptContent = "";
-    const pyUpload = document.getElementById('py-upload');
-    const fileNameDisplay = document.getElementById('file-name');
     const flowParamsContainer = document.getElementById('flow-params-container');
     const runFlowBtn = document.getElementById('run-flow-btn');
     const flowResultsContent = document.getElementById('flow-results-content');
@@ -300,18 +294,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.error("Pyodide Load Error", e); }
     }
     initPyodide();
-
-    if (pyUpload) {
-        pyUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                if (fileNameDisplay) fileNameDisplay.textContent = file.name;
-                const reader = new FileReader();
-                reader.onload = (ev) => { pyScriptContent = ev.target.result; };
-                reader.readAsText(file);
-            }
-        });
-    }
 
     if (runFlowBtn) {
         runFlowBtn.addEventListener('click', async () => {
@@ -399,7 +381,7 @@ calculate_logic(${JSON.stringify(inputs)})
                         borderRadius: 8
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '베인 유무에 따른 배압 비교' } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '베인 유무에 따른 배압 비교' }, datalabels: { display: false } } }
             });
         }
         const ctxGamma = document.getElementById('flowChartGamma')?.getContext('2d');
@@ -415,7 +397,7 @@ calculate_logic(${JSON.stringify(inputs)})
                         borderRadius: 8
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '베인 유무에 따른 유동 균일도 비교' } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '베인 유무에 따른 유동 균일도 비교' }, datalabels: { display: false } } }
             });
         }
         const ctxOpt = document.getElementById('flowChartOpt')?.getContext('2d');
@@ -425,13 +407,47 @@ calculate_logic(${JSON.stringify(inputs)})
                 data: {
                     labels: res.opt_pos.map(p => p.toFixed(0)),
                     datasets: [
-                        { label: 'ΔP (kPa)', data: res.opt_dp, borderColor: '#ff3d00', yAxisID: 'y', tension: 0.4 },
-                        { label: 'Gamma (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], yAxisID: 'y1', tension: 0.4 }
+                        { 
+                            label: 'ΔP (kPa)', 
+                            data: res.opt_dp, 
+                            borderColor: '#ff3d00', 
+                            yAxisID: 'y', 
+                            tension: 0.4,
+                            datalabels: {
+                                display: (context) => context.dataIndex % 4 === 0, // 4개마다 하나씩 표시하여 가독성 확보
+                                align: 'top',
+                                color: '#ff3d00',
+                                font: { size: 10, weight: 'bold' },
+                                formatter: (value) => value.toFixed(2)
+                            }
+                        },
+                        { 
+                            label: 'Gamma (γ)', 
+                            data: res.opt_gamma, 
+                            borderColor: '#00c853', 
+                            borderDash: [5, 5], 
+                            yAxisID: 'y1', 
+                            tension: 0.4,
+                            datalabels: {
+                                display: (context) => context.dataIndex % 4 === 2, // 엇갈리게 표시
+                                align: 'bottom',
+                                color: '#00c853',
+                                font: { size: 10, weight: 'bold' },
+                                formatter: (value) => value.toFixed(2)
+                            }
+                        }
                     ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: '베인 위치에 따른 성능 변화' } },
+                    plugins: { 
+                        title: { display: true, text: '베인 위치에 따른 성능 변화' },
+                        datalabels: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                            borderRadius: 4,
+                            padding: 2
+                        }
+                    },
                     scales: {
                         y: { type: 'linear', position: 'left', title: { display: true, text: 'Pressure' } },
                         y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Uniformity' } }
