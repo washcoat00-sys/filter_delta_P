@@ -162,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- [유동 분석 로직] ---
     let pyodide = null;
-    const flowParamsContainer = document.getElementById('flow-params-container');
     const runFlowBtn = document.getElementById('run-flow-btn');
     const flowResultsContent = document.getElementById('flow-results-content');
     
@@ -172,59 +171,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let flowChartBPOpt = null;
     let flowChartUniformOpt = null;
 
-    const paramGroups = [
-        {
-            title: "1. 배기 환경 (Exhaust)",
-            params: [
-                { label: "유량 [CMM]", default: 12000.0 },
-                { label: "배기 온도 [°C]", default: 20.0 },
-                { label: "배기관 직경 [mm]", default: 800.0 }
-            ]
-        },
-        {
-            title: "2. 촉매 제원 (Catalyst)",
-            params: [
-                { label: "촉매 가로 [mm]", default: 100.0 },
-                { label: "촉매 세로 [mm]", default: 100.0 },
-                { label: "Cone 각도 [도]", default: 47.0 },
-                { label: "촉매 길이 [mm]", default: 100.0 },
-                { label: "CPSI [cpsi]", default: 120.0 },
-                { label: "벽 두께 [mil]", default: 15.7 },
-                { label: "입구 가로 [m]", default: 2.2 },
-                { label: "입구 세로 [m]", default: 2.0 },
-                { label: "적재 단수 [단]", default: 8.0 },
-                { label: "간격 [cm]", default: 10.0 }
-            ]
-        },
-        {
-            title: "3. Vane 설계 (Vane)",
-            params: [
-                { label: "날개 개수 [개]", default: 10.0 },
-                { label: "날개 두께 [mm]", default: 2.0 },
-                { label: "날개 표면적 [m^2]", default: 0.52 },
-                { label: "배치 각도 [도]", default: 50.0 },
-                { label: "전단 위치 [cm]", default: 30.0 }
-            ]
-        }
+    // 기본 파라미터값 (입력창 삭제로 인해 고정값 사용)
+    const flowDefaults = [
+        12000.0, 20.0, 800.0, 100.0, 100.0, 47.0, 100.0, 120.0, 15.7, 
+        2.2, 2.0, 8.0, 10.0, 10.0, 2.0, 0.52, 50.0, 30.0
     ];
-
-    let globalParamIndex = 0;
-    paramGroups.forEach((group) => {
-        const groupEl = document.createElement('div');
-        groupEl.className = 'param-group';
-        groupEl.innerHTML = `<div class="param-group-title">${group.title}</div>`;
-        const grid = document.createElement('div');
-        grid.className = 'params-grid';
-        group.params.forEach((param) => {
-            const row = document.createElement('div');
-            row.className = 'form-row compact';
-            row.innerHTML = `<span>${param.label}</span><input type="number" id="flow_p_${globalParamIndex}" value="${param.default}">`;
-            grid.appendChild(row);
-            globalParamIndex++;
-        });
-        groupEl.appendChild(grid);
-        flowParamsContainer.appendChild(groupEl);
-    });
 
     async function initPyodide() {
         try {
@@ -236,20 +187,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     runFlowBtn.addEventListener('click', async () => {
         if (!pyodide) { alert("Pyodide 준비 중입니다."); return; }
-        const inputs = Array.from({length: 18}, (_, i) => parseFloat(document.getElementById(`flow_p_${i}`).value));
+        
+        // 입력창이 삭제되었으므로 flowDefaults를 직접 사용
+        const inputs = flowDefaults;
+        
         const pythonCode = `
 import numpy as np
 def calculate_logic(inputs):
-    # 입력값 추출
+    # 0:CMM, 1:Temp, 2:PipeDia, 3:CatW, 4:CatH, 5:ConeAngle, 6:CatL, 7:CPSI, 8:WallMil, 9:InstW, 10:InstH, 11:Layers, 12:Gap, 13:V_Cnt, 14:V_Thick, 15:V_Area, 16:V_Angle, 17:V_Pos
     m_flow_cmm, temp_c, d_pipe_mm, cat_w_mm, cat_h_mm, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, inst_w_m, inst_h_m, num_layers, cat_gap_cm, vane_count, vane_thick_mm, vane_surface_m2, vane_angle_deg, vane_pos_cm_default = inputs
     
-    # 기초 물리 상수
     temp_k = temp_c + 273.15
     rho = 101325 / (287.05 * temp_k)
     mu = 1.716e-5 * (temp_k/273.15)**1.5 * (273.15+110.4)/(temp_k+110.4)
     area_pipe = np.pi * (d_pipe_mm/1000.0)**2 / 4.0
     
-    # 촉매 단면적 (사각형)
     area_install = (cat_w_mm / 1000.0) * (cat_h_mm / 1000.0)
     
     total_cat_length_m = num_layers * (unit_cat_l_mm / 1000.0)
@@ -261,37 +213,22 @@ def calculate_logic(inputs):
     def calculate(v_pos_cm, has_vane):
         area_ratio = area_install / area_pipe
         if has_vane:
-            # vane2_thicker.py: gamma = min(0.98, 0.86 + 0.12 * (1 - exp(-0.06 * v_pos)))
-            # 요청에 따라 1.0을 절대 넘지 않도록 min(0.98, ...) 적용
             gamma = min(0.98, 0.86 + 0.12 * (1.0 - np.exp(-0.06 * v_pos_cm)))
             blockage = (vane_count * vane_thick_mm / 1000.0 * (d_pipe_mm/2000.0)) / area_pipe
             vane_loss = 0.25 + blockage + (vane_surface_m2 * 0.05)
         else:
-            # vane2_thicker.py: gamma = max(0.35, 1.0 - (0.006 * inlet_angle * log10(area_ratio)))
             gamma = max(0.35, 1.0 - (0.006 * (inlet_angle_half * 2.0) * np.log10(area_ratio)))
             vane_loss = 0.0
             
         v_pipe = (m_flow_cmm / 60.0) / area_pipe
-        
-        # Form Drag (Pascals)
         dp_form = (0.5 * rho * v_pipe**2) * (0.5 + vane_loss)
-        
-        # 촉매 채널 내부 실질 유속 (gamma에 따른 국부 고속 제트 반영)
-        # v_ch_eff = ((Q) / (Area * OFA)) * (2 - gamma)
         v_ch_eff = ((m_flow_cmm / 60.0) / (area_install * ofa)) * (2.0 - gamma)
-        
-        # Darcy-Weisbach / Hagen-Poiseuille friction
-        # f = 56.9 / Re (Laminar flow in square channels)
         re_ch = (rho * v_ch_eff * d_h) / mu
         if re_ch < 1e-5: re_ch = 1e-5
         f_ch = 56.9 / re_ch
-        
-        # Pressure drop in catalyst (Pascals)
         dp_cat = f_ch * (total_cat_length_m / d_h) * (rho * v_ch_eff**2 / 2.0)
         
-        # 최종 합산 (Pa -> kPa 변환)
         dp_total_kpa = (dp_form + dp_cat) / 1000.0
-        
         return float(dp_total_kpa), float(gamma)
     
     dp_v, g_v = calculate(vane_pos_cm_default, True)
