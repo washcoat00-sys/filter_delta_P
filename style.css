@@ -221,7 +221,7 @@ header h1 {
 }
 
 .form-row span {
-    font-size: 0.85rem;
+    font-size: 1rem; /* 결과창과 동일하게 크기 상향 */
     font-weight: 500;
     opacity: 0.9;
 }
@@ -233,7 +233,7 @@ input[type="number"], input[type="text"] {
     padding: 8px 12px;
     color: var(--text-color);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9rem;
+    font-size: 1rem; /* 결과창과 동일하게 크기 상향 */
     transition: all 0.2s;
     outline: none;
     width: 100%; /* 너비 기본 확장 */
@@ -285,7 +285,7 @@ input:focus {
 }
 
 .flow-input-item label {
-    font-size: 0.75rem;
+    font-size: 1rem; /* 결과창과 통일 */
     font-weight: 500;
     opacity: 0.8;
 }
@@ -294,7 +294,8 @@ input:focus {
     width: 100% !important; /* 개별 아이템 너비 전체 확보 */
     max-width: none !important;
     padding: 6px 8px;
-    font-size: 0.85rem;
+    font-size: 1rem; /* 결과창과 통일 */
+    font-family: 'JetBrains Mono', monospace;
 }
 
 @media (min-width: 1400px) {
