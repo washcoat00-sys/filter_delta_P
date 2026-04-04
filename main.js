@@ -240,46 +240,59 @@ document.addEventListener('DOMContentLoaded', () => {
         const pythonCode = `
 import numpy as np
 def calculate_logic(inputs):
-    # 0:CMM, 1:Temp, 2:PipeDia, 3:CatW, 4:CatH, 5:ConeAngle, 6:CatL, 7:CPSI, 8:WallMil, 9:InstW, 10:InstH, 11:Layers, 12:Gap, 13:V_Cnt, 14:V_Thick, 15:V_Area, 16:V_Angle, 17:V_Pos
+    # 입력값 추출
     m_flow_cmm, temp_c, d_pipe_mm, cat_w_mm, cat_h_mm, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, inst_w_m, inst_h_m, num_layers, cat_gap_cm, vane_count, vane_thick_mm, vane_surface_m2, vane_angle_deg, vane_pos_cm_default = inputs
     
+    # 기초 물리 상수
     temp_k = temp_c + 273.15
     rho = 101325 / (287.05 * temp_k)
     mu = 1.716e-5 * (temp_k/273.15)**1.5 * (273.15+110.4)/(temp_k+110.4)
-    area_pipe = np.pi * (d_pipe_mm/1000)**2 / 4
+    area_pipe = np.pi * (d_pipe_mm/1000.0)**2 / 4.0
     
-    # 사각형 면적 계산 (mm -> m)
+    # 촉매 단면적 (사각형)
     area_install = (cat_w_mm / 1000.0) * (cat_h_mm / 1000.0)
     
-    total_cat_length_m = num_layers * (unit_cat_l_mm / 1000)
+    total_cat_length_m = num_layers * (unit_cat_l_mm / 1000.0)
     t_wall_m = t_wall_mil * 2.54e-5
-    pitch = np.sqrt(1/cpsi) * 0.0254
+    pitch = np.sqrt(1.0/cpsi) * 0.0254
     d_h = pitch - t_wall_m
     ofa = (d_h / pitch)**2
     
     def calculate(v_pos_cm, has_vane):
         area_ratio = area_install / area_pipe
         if has_vane:
-            # vane2_thicker.py와 동일한 gamma 계산 (max 1.0)
-            gamma = min(1.0, 0.86 + 0.12 * (1 - np.exp(-0.06 * v_pos_cm)))
-            blockage = (vane_count * vane_thick_mm / 1000 * (d_pipe_mm/2000)) / area_pipe
+            # vane2_thicker.py: gamma = min(0.98, 0.86 + 0.12 * (1 - exp(-0.06 * v_pos)))
+            # 요청에 따라 1.0을 절대 넘지 않도록 min(0.98, ...) 적용
+            gamma = min(0.98, 0.86 + 0.12 * (1.0 - np.exp(-0.06 * v_pos_cm)))
+            blockage = (vane_count * vane_thick_mm / 1000.0 * (d_pipe_mm/2000.0)) / area_pipe
             vane_loss = 0.25 + blockage + (vane_surface_m2 * 0.05)
         else:
-            gamma = max(0.35, 1.0 - (0.006 * (inlet_angle_half * 2) * np.log10(area_ratio)))
+            # vane2_thicker.py: gamma = max(0.35, 1.0 - (0.006 * inlet_angle * log10(area_ratio)))
+            gamma = max(0.35, 1.0 - (0.006 * (inlet_angle_half * 2.0) * np.log10(area_ratio)))
             vane_loss = 0.0
+            
+        v_pipe = (m_flow_cmm / 60.0) / area_pipe
         
-        v_pipe = (m_flow_cmm / 60) / area_pipe
-        # Form Drag (형상 저항) - Pascals
+        # Form Drag (Pascals)
         dp_form = (0.5 * rho * v_pipe**2) * (0.5 + vane_loss)
         
-        # 촉매 내부 실질 유속 (gamma 반영)
-        v_ch_eff = ((m_flow_cmm / 60) / (area_install * ofa)) * (2 - gamma)
+        # 촉매 채널 내부 실질 유속 (gamma에 따른 국부 고속 제트 반영)
+        # v_ch_eff = ((Q) / (Area * OFA)) * (2 - gamma)
+        v_ch_eff = ((m_flow_cmm / 60.0) / (area_install * ofa)) * (2.0 - gamma)
         
-        # Darcy-Weisbach friction factor
-        f_ch = 56.9 / ((rho * v_ch_eff * d_h) / mu)
-        dp_cat = f_ch * (total_cat_length_m / d_h) * (rho * v_ch_eff**2 / 2)
+        # Darcy-Weisbach / Hagen-Poiseuille friction
+        # f = 56.9 / Re (Laminar flow in square channels)
+        re_ch = (rho * v_ch_eff * d_h) / mu
+        if re_ch < 1e-5: re_ch = 1e-5
+        f_ch = 56.9 / re_ch
         
-        return float((dp_form + dp_cat) / 1000), float(gamma)
+        # Pressure drop in catalyst (Pascals)
+        dp_cat = f_ch * (total_cat_length_m / d_h) * (rho * v_ch_eff**2 / 2.0)
+        
+        # 최종 합산 (Pa -> kPa 변환)
+        dp_total_kpa = (dp_form + dp_cat) / 1000.0
+        
+        return float(dp_total_kpa), float(gamma)
     
     dp_v, g_v = calculate(vane_pos_cm_default, True)
     dp_nv, g_nv = calculate(vane_pos_cm_default, False)
@@ -341,7 +354,7 @@ calculate_logic(${JSON.stringify(inputs)})
                 labels: ['With Vane', 'No Vane'],
                 datasets: [{ label: 'Uniformity (γ)', data: [res.g_v, res.g_nv], backgroundColor: ['#00c853', '#cbd5e1'], borderRadius: 6 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.0 } } }
         });
 
         const ctx3 = document.getElementById('flowChartBPOpt').getContext('2d');
@@ -361,7 +374,7 @@ calculate_logic(${JSON.stringify(inputs)})
                 labels: res.opt_pos.map(p => p.toFixed(0)),
                 datasets: [{ label: 'Uniformity (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], tension: 0.4 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Gamma (γ)' } } } }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.0, title: { display: true, text: 'Gamma (γ)' } } } }
         });
     }
 });
