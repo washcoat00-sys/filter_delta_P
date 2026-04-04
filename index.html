@@ -101,8 +101,9 @@
                 </form>
 
                 <div class="btn-group-vertical">
-                    <button id="analyze-btn" class="primary-btn">상태별 분석하기</button>
-                    <button id="graph-btn" class="secondary-btn">분석 그래프 보기</button>
+                    <button id="combined-analyze-btn" class="primary-btn">
+                        <span class="icon">🚀</span> 분석 실행 (결과 & 그래프)
+                    </button>
                 </div>
 
                 <div class="guide-box-mini">
@@ -142,28 +143,53 @@
 
         <!-- 유동 분석 모드 (새로운 레이아웃) -->
         <div id="flow-content" class="main-layout" style="display: none;">
-            <div class="layout-col flow-center-container">
-                <button id="run-flow-btn" class="primary-btn flow-run-large">
-                    <span style="font-size: 4rem;">🌪️</span>
-                    <span>유동 분석 실행</span>
-                </button>
-            </div>
+            <aside class="layout-col col-inputs">
+                <section class="form-section">
+                    <h3>스크립트 업로드</h3>
+                    <div class="upload-container">
+                        <input type="file" id="py-upload" accept=".py" class="file-input" style="display: none;">
+                        <label for="py-upload" class="file-label" style="cursor: pointer; padding: 10px; background: var(--primary); color: white; border-radius: 6px; display: inline-block; width: 100%; text-align: center; box-sizing: border-box;">
+                            📁 Python 스크립트 선택 (.py)
+                        </label>
+                        <p id="file-name" class="file-status" style="font-size: 0.8rem; margin-top: 5px; text-align: center;">선택된 파일 없음 (기본값: vane2_thicker.py)</p>
+                    </div>
+                </section>
+                
+                <form id="flow-form" class="vertical-form">
+                    <section class="form-section">
+                        <h3>입력 파라미터</h3>
+                        <div id="flow-params-container">
+                            <!-- JS에서 동적으로 생성됨 -->
+                        </div>
+                    </section>
+                </form>
+                
+                <div class="btn-group-vertical">
+                    <button id="run-flow-btn" class="primary-btn">유동 분석 실행</button>
+                </div>
+                <div id="py-status" class="guide-box-mini">
+                    Pyodide 초기화 대기 중...
+                </div>
+            </aside>
             
             <main class="layout-col col-results">
                 <div class="results-container">
                     <h3>공학 해석 리포트</h3>
                     <div id="flow-results-content">
-                        <div class="placeholder-msg">실행 버튼을 눌러주세요.</div>
+                        <div class="placeholder-msg">분석 실행 버튼을 눌러주세요.</div>
                     </div>
                 </div>
             </main>
             
             <section class="layout-col col-graph">
                 <div class="graph-box">
-                    <div class="chart-wrapper"><canvas id="flowChartBPBar"></canvas></div>
-                    <div class="chart-wrapper"><canvas id="flowChartUniformBar"></canvas></div>
-                    <div class="chart-wrapper"><canvas id="flowChartBPOpt"></canvas></div>
-                    <div class="chart-wrapper"><canvas id="flowChartUniformOpt"></canvas></div>
+                    <h3>유동 균일도 및 배압 그래프</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="flowChart1"></canvas>
+                    </div>
+                    <div class="chart-wrapper" style="margin-top: 10px;">
+                        <canvas id="flowChart2"></canvas>
+                    </div>
                 </div>
             </section>
         </div>
