@@ -162,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- [유동 분석 로직] ---
     let pyodide = null;
-    const pyStatus = document.getElementById('py-status');
     const flowParamsContainer = document.getElementById('flow-params-container');
     const runFlowBtn = document.getElementById('run-flow-btn');
     const flowResultsContent = document.getElementById('flow-results-content');
@@ -229,30 +228,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initPyodide() {
         try {
-            pyStatus.textContent = "SYSTEM INITIALIZING...";
             pyodide = await loadPyodide();
             await pyodide.loadPackage(['numpy']);
-            pyStatus.textContent = "SYSTEM READY";
-            pyStatus.style.color = "var(--secondary)";
-        } catch (e) { pyStatus.textContent = "ERROR"; }
+        } catch (e) { console.error(e); }
     }
     initPyodide();
 
     runFlowBtn.addEventListener('click', async () => {
-        if (!pyodide) return;
+        if (!pyodide) { alert("Pyodide 준비 중입니다."); return; }
         const inputs = Array.from({length: 18}, (_, i) => parseFloat(document.getElementById(`flow_p_${i}`).value));
         const pythonCode = `
 import numpy as np
 def calculate_logic(inputs):
-    # 입력 매핑 (18개 항목)
-    m_flow_cmm, temp_c, d_pipe_mm, cat_w_mm, cat_h_mm, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, install_w_m, install_h_m, num_layers, cat_gap_cm, vane_count, vane_thick_mm, vane_surface_m2, vane_angle_deg, vane_pos_cm_default = inputs
+    # 0:CMM, 1:Temp, 2:PipeDia, 3:CatW, 4:CatH, 5:ConeAngle, 6:CatL, 7:CPSI, 8:WallMil, 9:InstW, 10:InstH, 11:Layers, 12:Gap, 13:V_Cnt, 14:V_Thick, 15:V_Area, 16:V_Angle, 17:V_Pos
+    m_flow_cmm, temp_c, d_pipe_mm, cat_w_mm, cat_h_mm, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, inst_w_m, inst_h_m, num_layers, cat_gap_cm, vane_count, vane_thick_mm, vane_surface_m2, vane_angle_deg, vane_pos_cm_default = inputs
     
     temp_k = temp_c + 273.15
     rho = 101325 / (287.05 * temp_k)
     mu = 1.716e-5 * (temp_k/273.15)**1.5 * (273.15+110.4)/(temp_k+110.4)
     area_pipe = np.pi * (d_pipe_mm/1000)**2 / 4
     
-    # 면적 계산: 사각형 (mm -> m 변환)
+    # 사각형 면적 계산 (mm -> m)
     area_install = (cat_w_mm / 1000.0) * (cat_h_mm / 1000.0)
     
     total_cat_length_m = num_layers * (unit_cat_l_mm / 1000)
@@ -264,26 +260,36 @@ def calculate_logic(inputs):
     def calculate(v_pos_cm, has_vane):
         area_ratio = area_install / area_pipe
         if has_vane:
-            gamma = min(0.98, 0.86 + 0.12 * (1 - np.exp(-0.06 * v_pos_cm)))
+            # vane2_thicker.py와 동일한 gamma 계산 (max 1.0)
+            gamma = min(1.0, 0.86 + 0.12 * (1 - np.exp(-0.06 * v_pos_cm)))
             blockage = (vane_count * vane_thick_mm / 1000 * (d_pipe_mm/2000)) / area_pipe
             vane_loss = 0.25 + blockage + (vane_surface_m2 * 0.05)
         else:
             gamma = max(0.35, 1.0 - (0.006 * (inlet_angle_half * 2) * np.log10(area_ratio)))
             vane_loss = 0.0
+        
         v_pipe = (m_flow_cmm / 60) / area_pipe
+        # Form Drag (형상 저항) - Pascals
         dp_form = (0.5 * rho * v_pipe**2) * (0.5 + vane_loss)
+        
+        # 촉매 내부 실질 유속 (gamma 반영)
         v_ch_eff = ((m_flow_cmm / 60) / (area_install * ofa)) * (2 - gamma)
+        
+        # Darcy-Weisbach friction factor
         f_ch = 56.9 / ((rho * v_ch_eff * d_h) / mu)
         dp_cat = f_ch * (total_cat_length_m / d_h) * (rho * v_ch_eff**2 / 2)
+        
         return float((dp_form + dp_cat) / 1000), float(gamma)
     
     dp_v, g_v = calculate(vane_pos_cm_default, True)
     dp_nv, g_nv = calculate(vane_pos_cm_default, False)
+    
     pos_range = np.linspace(0, 100, 20)
     opt_dp, opt_gamma = [], []
     for p in pos_range:
         d, g = calculate(p, True)
         opt_dp.append(d); opt_gamma.append(g)
+        
     return {"dp_v": dp_v, "g_v": g_v, "dp_nv": dp_nv, "g_nv": g_nv, "opt_pos": pos_range.tolist(), "opt_dp": opt_dp, "opt_gamma": opt_gamma}
 
 calculate_logic(${JSON.stringify(inputs)})
@@ -299,15 +305,15 @@ calculate_logic(${JSON.stringify(inputs)})
         const gain = ((res.dp_nv - res.dp_v) / res.dp_nv * 100).toFixed(1);
         flowResultsContent.innerHTML = `
             <div class="result-card" style="border-left-color: var(--primary)">
-                <strong>Backpressure Analysis</strong>
-                <p>With Vane: ${res.dp_v.toFixed(3)} kPa</p>
-                <p>No Vane: ${res.dp_nv.toFixed(3)} kPa</p>
-                <p style="color:var(--secondary); font-weight:700">Improvement: ${gain}%</p>
+                <strong>배압 분석 결과 (Backpressure)</strong>
+                <p>베인 적용 시: ${res.dp_v.toFixed(3)} kPa</p>
+                <p>베인 미적용: ${res.dp_nv.toFixed(3)} kPa</p>
+                <p style="color:var(--secondary); font-weight:700">개선 효과: ${gain}%</p>
             </div>
             <div class="result-card" style="border-left-color: var(--secondary)">
-                <strong>Flow Uniformity (γ)</strong>
-                <p>With Vane: ${res.g_v.toFixed(3)}</p>
-                <p>No Vane: ${res.g_nv.toFixed(3)}</p>
+                <strong>유동 균일도 (Uniformity γ)</strong>
+                <p>베인 적용 시: ${res.g_v.toFixed(3)}</p>
+                <p>베인 미적용: ${res.g_nv.toFixed(3)}</p>
             </div>
         `;
     }
@@ -353,7 +359,7 @@ calculate_logic(${JSON.stringify(inputs)})
             type: 'line',
             data: {
                 labels: res.opt_pos.map(p => p.toFixed(0)),
-                datasets: [{ label: 'Uniformity Optimization (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], tension: 0.4 }]
+                datasets: [{ label: 'Uniformity (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], tension: 0.4 }]
             },
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Gamma (γ)' } } } }
         });

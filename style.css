@@ -331,14 +331,23 @@ input:focus {
     font-size: 0.85rem;
 }
 
+.primary-btn.flow-run-large {
+    padding: 25px;
+    font-size: 1.4rem;
+    background: linear-gradient(135deg, #00c853 0%, #007e33 100%);
+    box-shadow: 0 10px 30px rgba(0, 200, 83, 0.4);
+    margin: 15px 0;
+    letter-spacing: 1px;
+}
+
+.primary-btn.flow-run-large:active {
+    transform: scale(0.96);
+    box-shadow: 0 4px 15px rgba(0, 200, 83, 0.2);
+}
+
 /* Status Badge */
 #py-status {
-    padding: 10px;
-    border-radius: 10px;
-    font-weight: 600;
-    text-align: center;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
+    display: none;
 }
 
 /* Animations */
