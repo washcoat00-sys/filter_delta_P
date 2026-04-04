@@ -109,10 +109,43 @@ header h1 {
 /* Main Layout */
 .main-layout {
     display: grid;
-    grid-template-columns: 380px 1fr 1.2fr;
-    gap: 20px;
+    /* 입력창(380px) + 구분선(10px) + 결과창(1fr) + 구분선(10px) + 그래프(1.2fr) */
+    grid-template-columns: 380px 10px 1fr 10px 1.2fr;
+    gap: 0; /* gap 대신 resizer 사용 */
     flex: 1;
     overflow: hidden;
+    position: relative;
+}
+
+/* Resizer Styling */
+.resizer {
+    width: 10px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.2s;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.resizer::after {
+    content: '';
+    width: 2px;
+    height: 40px;
+    background: var(--border);
+    border-radius: 2px;
+}
+
+.resizer:hover::after {
+    background: var(--primary);
+    width: 4px;
+}
+
+.resizer.active::after {
+    background: var(--primary);
+    width: 4px;
+    height: 100%;
 }
 
 .layout-col {

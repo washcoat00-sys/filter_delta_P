@@ -27,6 +27,66 @@ function switchMode(mode) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- [레이아웃 리사이저 로직] ---
+    function initResizer(containerId, resizerId1, resizerId2) {
+        const container = document.getElementById(containerId);
+        const resizer1 = document.getElementById(resizerId1);
+        const resizer2 = document.getElementById(resizerId2);
+        
+        let activeResizer = null;
+
+        const startResizing = (e, resizer) => {
+            activeResizer = resizer;
+            document.body.style.cursor = 'col-resize';
+            resizer.classList.add('active');
+            e.preventDefault();
+        };
+
+        const stopResizing = () => {
+            if (activeResizer) {
+                activeResizer.classList.remove('active');
+                activeResizer = null;
+                document.body.style.cursor = 'default';
+            }
+        };
+
+        const resize = (e) => {
+            if (!activeResizer) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const mouseX = e.clientX - containerRect.left;
+            
+            // 현재 설정된 그리드 칼럼 값들 가져오기
+            let cols = getComputedStyle(container).gridTemplateColumns.split(' ');
+            
+            if (activeResizer === resizer1) {
+                // 첫 번째 구분선: 왼쪽 입력창 너비 조절
+                const newWidth = Math.max(250, Math.min(600, mouseX));
+                cols[0] = `${newWidth}px`;
+            } else if (activeResizer === resizer2) {
+                // 두 번째 구분선: 중간 결과창 너비 조절
+                // 첫 번째 컬럼 너비 + 첫 번째 리사이저 너비를 뺀 위치에서 계산
+                const col1Width = parseFloat(cols[0]);
+                const resizer1Width = parseFloat(cols[1]);
+                const newWidth = Math.max(300, mouseX - col1Width - resizer1Width);
+                cols[2] = `${newWidth}px`;
+            }
+            
+            container.style.gridTemplateColumns = cols.join(' ');
+            
+            // 차트 리사이즈 유도
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        resizer1.addEventListener('mousedown', (e) => startResizing(e, resizer1));
+        resizer2.addEventListener('mousedown', (e) => startResizing(e, resizer2));
+        document.addEventListener('mousemove', resize);
+        document.addEventListener('mouseup', stopResizing);
+    }
+
+    initResizer('deltap-content', 'resizer-dp-1', 'resizer-dp-2');
+    initResizer('flow-content', 'resizer-flow-1', 'resizer-flow-2');
+
     // --- [공통 요소] ---
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.addEventListener('click', () => {
