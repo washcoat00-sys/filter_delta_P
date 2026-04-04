@@ -168,14 +168,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- [유동 분석 로직] ---
     let pyodide = null;
     let pyScriptContent = "";
-    const pyStatus = document.getElementById('py-status');
     const pyUpload = document.getElementById('py-upload');
     const fileNameDisplay = document.getElementById('file-name');
     const flowParamsContainer = document.getElementById('flow-params-container');
     const runFlowBtn = document.getElementById('run-flow-btn');
     const flowResultsContent = document.getElementById('flow-results-content');
-    let flowChart1 = null;
-    let flowChart2 = null;
+    let flowChartDP = null;
+    let flowChartGamma = null;
+    let flowChartOpt = null;
 
     const flowLabels = [
         "질량유량 [CMM]", "배기 온도 [°C]", "배기관 직경 [mm]",
@@ -221,11 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initPyodide() {
         try {
-            pyStatus.textContent = "SYSTEM READY";
             pyodide = await loadPyodide();
             await pyodide.loadPackage(['numpy']);
-            pyStatus.style.color = "var(--secondary)";
-        } catch (e) { pyStatus.textContent = "ERROR"; }
+            console.log("Python Ready");
+        } catch (e) { console.error("Pyodide Load Error", e); }
     }
     initPyodide();
 
@@ -306,22 +305,48 @@ calculate_logic(${JSON.stringify(inputs)})
     }
 
     function drawFlowCharts(res) {
-        if (flowChart1) flowChart1.destroy();
-        if (flowChart2) flowChart2.destroy();
-        const ctx1 = document.getElementById('flowChart1').getContext('2d');
-        flowChart1 = new Chart(ctx1, {
+        if (flowChartDP) flowChartDP.destroy();
+        if (flowChartGamma) flowChartGamma.destroy();
+        if (flowChartOpt) flowChartOpt.destroy();
+
+        const ctxDP = document.getElementById('flowChartDP').getContext('2d');
+        flowChartDP = new Chart(ctxDP, {
             type: 'bar',
             data: {
                 labels: ['With Vane', 'No Vane'],
-                datasets: [
-                    { label: 'Backpressure (kPa)', data: [res.dp_v, res.dp_nv], backgroundColor: ['#0062ff', '#94a3b8'], borderRadius: 8 },
-                    { label: 'Uniformity (γ)', data: [res.g_v, res.g_nv], backgroundColor: ['#00c853', '#cbd5e1'], borderRadius: 8 }
-                ]
+                datasets: [{
+                    label: 'Backpressure (kPa)',
+                    data: [res.dp_v, res.dp_nv],
+                    backgroundColor: ['#0062ff', '#94a3b8'],
+                    borderRadius: 8
+                }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, maintainAspectRatio: false,
+                plugins: { title: { display: true, text: '베인 유무에 따른 배압 비교' } }
+            }
         });
-        const ctx2 = document.getElementById('flowChart2').getContext('2d');
-        flowChart2 = new Chart(ctx2, {
+
+        const ctxGamma = document.getElementById('flowChartGamma').getContext('2d');
+        flowChartGamma = new Chart(ctxGamma, {
+            type: 'bar',
+            data: {
+                labels: ['With Vane', 'No Vane'],
+                datasets: [{
+                    label: 'Uniformity (γ)',
+                    data: [res.g_v, res.g_nv],
+                    backgroundColor: ['#00c853', '#cbd5e1'],
+                    borderRadius: 8
+                }]
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false,
+                plugins: { title: { display: true, text: '베인 유무에 따른 유동 균일도 비교' } }
+            }
+        });
+
+        const ctxOpt = document.getElementById('flowChartOpt').getContext('2d');
+        flowChartOpt = new Chart(ctxOpt, {
             type: 'line',
             data: {
                 labels: res.opt_pos.map(p => p.toFixed(0)),
@@ -332,6 +357,7 @@ calculate_logic(${JSON.stringify(inputs)})
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                plugins: { title: { display: true, text: '베인 위치에 따른 성능 변화' } },
                 scales: {
                     y: { type: 'linear', position: 'left', title: { display: true, text: 'Pressure' } },
                     y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Uniformity' } }

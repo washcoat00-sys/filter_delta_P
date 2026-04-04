@@ -167,9 +167,6 @@
                 <div class="btn-group-vertical">
                     <button id="run-flow-btn" class="primary-btn">유동 분석 실행</button>
                 </div>
-                <div id="py-status" class="guide-box-mini">
-                    Pyodide 초기화 대기 중...
-                </div>
             </aside>
             
             <main class="layout-col col-results">
@@ -183,12 +180,15 @@
             
             <section class="layout-col col-graph">
                 <div class="graph-box">
-                    <h3>유동 균일도 및 배압 그래프</h3>
+                    <h3>유동 분석 결과 그래프</h3>
                     <div class="chart-wrapper">
-                        <canvas id="flowChart1"></canvas>
+                        <canvas id="flowChartDP"></canvas>
                     </div>
                     <div class="chart-wrapper" style="margin-top: 10px;">
-                        <canvas id="flowChart2"></canvas>
+                        <canvas id="flowChartGamma"></canvas>
+                    </div>
+                    <div class="chart-wrapper" style="margin-top: 10px;">
+                        <canvas id="flowChartOpt"></canvas>
                     </div>
                 </div>
             </section>

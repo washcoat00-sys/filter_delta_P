@@ -348,10 +348,17 @@ input:focus {
 .chart-wrapper {
     background: var(--card-bg);
     border-radius: 18px;
-    padding: 20px;
+    padding: 15px;
     border: 1px solid var(--border);
     flex: 1;
-    min-height: 350px;
+    min-height: 250px; /* 3개 배치를 위해 최소 높이 하향 조정 */
+}
+
+.graph-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
 }
 
 /* Custom Scrollbar */
