@@ -26,7 +26,32 @@ function switchMode(mode) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// 외부 HTML 로드 함수
+async function loadContent() {
+    try {
+        const [dpRes, flowRes] = await Promise.all([
+            fetch('deltaP.html'),
+            fetch('flow.html')
+        ]);
+        
+        const dpHtml = await dpRes.text();
+        const flowHtml = await flowRes.text();
+        
+        document.getElementById('deltap-content').innerHTML = dpHtml;
+        document.getElementById('flow-content').innerHTML = flowHtml;
+        
+        return true;
+    } catch (e) {
+        console.error("Content loading failed", e);
+        return false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. HTML 조각 로드
+    const success = await loadContent();
+    if (!success) return;
+
     // --- [레이아웃 리사이저 로직] ---
     function initResizer(containerId, resizerId1, resizerId2) {
         const container = document.getElementById(containerId);
@@ -52,29 +77,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const resize = (e) => {
             if (!activeResizer) return;
-
             const containerRect = container.getBoundingClientRect();
             const mouseX = e.clientX - containerRect.left;
-            
-            // 현재 설정된 그리드 칼럼 값들 가져오기
             let cols = getComputedStyle(container).gridTemplateColumns.split(' ');
-            
             if (activeResizer === resizer1) {
-                // 첫 번째 구분선: 왼쪽 입력창 너비 조절
                 const newWidth = Math.max(250, Math.min(600, mouseX));
                 cols[0] = `${newWidth}px`;
             } else if (activeResizer === resizer2) {
-                // 두 번째 구분선: 중간 결과창 너비 조절
-                // 첫 번째 컬럼 너비 + 첫 번째 리사이저 너비를 뺀 위치에서 계산
                 const col1Width = parseFloat(cols[0]);
                 const resizer1Width = parseFloat(cols[1]);
                 const newWidth = Math.max(300, mouseX - col1Width - resizer1Width);
                 cols[2] = `${newWidth}px`;
             }
-            
             container.style.gridTemplateColumns = cols.join(' ');
-            
-            // 차트 리사이즈 유도
             window.dispatchEvent(new Event('resize'));
         };
 
@@ -92,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark-mode');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        // 차트 업데이트가 필요할 수 있음
     });
 
     // --- [차압 분석 로직] ---
@@ -155,12 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function performAnalysis() {
         const d = getInputs();
         if (!d) { alert("모든 입력값을 확인해주세요."); return; }
-        
-        // 1. 상태별 분석 수행
         const vol_L = (d.width_mm * d.height_mm * d.depth_mm) / 1e6;
         const curr_ash_gL = Math.max(0, (d.weight_after_regen - d.weight_clean) * 1000) / vol_L;
         const curr_soot_gL = Math.max(0, (d.weight_soot_loaded - d.weight_after_regen) * 1000) / vol_L;
-
         const getInfo = (s, a) => {
             const dp = getDP(d, s, a) / 1000.0;
             let p2 = d.amb_kpa - dp;
@@ -168,13 +179,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (p2 < 0) { p2 = 0; status = " (🚨 측정불가)"; }
             return { dp, p2, status };
         };
-
         const states = [
             { title: "Clean State", soot: 0, ash: 0, color: "#00c853" },
             { title: `Current Loading (${curr_soot_gL.toFixed(2)} g/L)`, soot: curr_soot_gL, ash: curr_ash_gL, color: "#0062ff" },
             { title: "After Regen", soot: 0, ash: curr_ash_gL, color: "#ff3d00" }
         ];
-
         resP1.textContent = d.amb_kpa.toFixed(3);
         resultsContent.innerHTML = '';
         states.forEach((state, index) => {
@@ -190,14 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             resultsContent.appendChild(card);
         });
-
-        // 2. 분석 그래프 수행
         const sootRange = [];
         for (let i = 0; i <= 50; i++) sootRange.push(i * 0.2);
         const yClean = sootRange.map(s => getDP(d, s, 0) / 1000.0);
         const yAsh = sootRange.map(s => getDP(d, s, curr_ash_gL) / 1000.0);
         const currDP = getDP(d, curr_soot_gL, curr_ash_gL) / 1000.0;
-
         if (myChart) myChart.destroy();
         const ctx = document.getElementById('dpfChart').getContext('2d');
         myChart = new Chart(ctx, {
@@ -222,8 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     combinedAnalyzeBtn.addEventListener('click', performAnalysis);
-
-
 
     // --- [유동 분석 로직] ---
     let pyodide = null;
@@ -261,10 +265,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const groupSection = document.createElement('div');
         groupSection.className = 'flow-input-group';
         groupSection.innerHTML = `<h4 class="group-title">${group.title}</h4>`;
-        
         const gridContainer = document.createElement('div');
         gridContainer.className = 'flow-grid-container';
-        
         group.indices.forEach(i => {
             const item = document.createElement('div');
             item.className = 'flow-input-item';
@@ -274,7 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             gridContainer.appendChild(item);
         });
-        
         groupSection.appendChild(gridContainer);
         flowParamsContainer.appendChild(groupSection);
     });
@@ -311,7 +312,7 @@ def calculate_logic(inputs):
     area_pipe = np.pi * (d_pipe_mm/1000)**2 / 4
     area_install = install_w_m * install_h_m
     total_cat_length_m = num_layers * (unit_cat_l_mm / 1000)
-    t_wall_m = t_wall_mil * 2.54e-5
+    t_wall_m = t_wall_m = t_wall_mil * 2.54e-5
     pitch = np.sqrt(1/cpsi) * 0.0254
     d_h = pitch - t_wall_m
     ofa = (d_h / pitch)**2
@@ -368,7 +369,6 @@ calculate_logic(${JSON.stringify(inputs)})
         if (flowChartDP) flowChartDP.destroy();
         if (flowChartGamma) flowChartGamma.destroy();
         if (flowChartOpt) flowChartOpt.destroy();
-
         const ctxDP = document.getElementById('flowChartDP').getContext('2d');
         flowChartDP = new Chart(ctxDP, {
             type: 'bar',
@@ -386,7 +386,6 @@ calculate_logic(${JSON.stringify(inputs)})
                 plugins: { title: { display: true, text: '베인 유무에 따른 배압 비교' } }
             }
         });
-
         const ctxGamma = document.getElementById('flowChartGamma').getContext('2d');
         flowChartGamma = new Chart(ctxGamma, {
             type: 'bar',
@@ -404,7 +403,6 @@ calculate_logic(${JSON.stringify(inputs)})
                 plugins: { title: { display: true, text: '베인 유무에 따른 유동 균일도 비교' } }
             }
         });
-
         const ctxOpt = document.getElementById('flowChartOpt').getContext('2d');
         flowChartOpt = new Chart(ctxOpt, {
             type: 'line',
