@@ -162,17 +162,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- [유동 분석 로직] ---
     let pyodide = null;
-    let pyScriptContent = "";
     const pyStatus = document.getElementById('py-status');
-    const pyUpload = document.getElementById('py-upload');
-    const fileNameDisplay = document.getElementById('file-name');
     const flowParamsContainer = document.getElementById('flow-params-container');
     const runFlowBtn = document.getElementById('run-flow-btn');
     const flowResultsContent = document.getElementById('flow-results-content');
-    let flowChart1 = null;
-    let flowChart2 = null;
+    
+    // 차트 변수들
+    let flowChartBPBar = null;
+    let flowChartUniformBar = null;
+    let flowChartBPOpt = null;
+    let flowChartUniformOpt = null;
 
-    // 파라미터 그룹화 및 2열 배치를 위한 설정
     const paramGroups = [
         {
             title: "1. 배기 환경 (Exhaust)",
@@ -208,16 +208,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
 
-    // 입력창 생성 (그룹별/2열 배치)
     let globalParamIndex = 0;
     paramGroups.forEach((group) => {
         const groupEl = document.createElement('div');
         groupEl.className = 'param-group';
         groupEl.innerHTML = `<div class="param-group-title">${group.title}</div>`;
-        
         const grid = document.createElement('div');
         grid.className = 'params-grid';
-        
         group.params.forEach((param) => {
             const row = document.createElement('div');
             row.className = 'form-row compact';
@@ -225,7 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
             grid.appendChild(row);
             globalParamIndex++;
         });
-        
         groupEl.appendChild(grid);
         flowParamsContainer.appendChild(groupEl);
     });
@@ -244,29 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
     runFlowBtn.addEventListener('click', async () => {
         if (!pyodide) return;
         const inputs = Array.from({length: 17}, (_, i) => parseFloat(document.getElementById(`flow_p_${i}`).value));
-        
         const pythonCode = `
 import numpy as np
 def calculate_logic(inputs):
-    # 입력값 (vane2_thicker.py와 동일한 순서 및 로직)
-    m_flow_cmm = inputs[0]
-    temp_c = inputs[1]
-    d_pipe_mm = inputs[2]
-    # inputs[3]은 cat_dia (사용되지 않음)
-    inlet_angle_half = inputs[4]
-    unit_cat_l_mm = inputs[5]
-    cpsi = inputs[6]
-    t_wall_mil = inputs[7]
-    install_w_m = inputs[8]
-    install_h_m = inputs[9]
-    num_layers = inputs[10]
-    # inputs[11]은 gap
-    vane_count = inputs[12]
-    vane_thick_mm = inputs[13]
-    vane_surface_m2 = inputs[14]
-    # inputs[15]은 angle
-    vane_pos_cm_default = inputs[16]
-
+    m_flow_cmm, temp_c, d_pipe_mm, _, inlet_angle_half, unit_cat_l_mm, cpsi, t_wall_mil, install_w_m, install_h_m, num_layers, _, vane_count, vane_thick_mm, vane_surface_m2, _, vane_pos_cm_default = inputs
     temp_k = temp_c + 273.15
     rho = 101325 / (287.05 * temp_k)
     mu = 1.716e-5 * (temp_k/273.15)**1.5 * (273.15+110.4)/(temp_k+110.4)
@@ -277,7 +254,6 @@ def calculate_logic(inputs):
     pitch = np.sqrt(1/cpsi) * 0.0254
     d_h = pitch - t_wall_m
     ofa = (d_h / pitch)**2
-
     def calculate(v_pos_cm, has_vane):
         area_ratio = area_install / area_pipe
         if has_vane:
@@ -287,29 +263,20 @@ def calculate_logic(inputs):
         else:
             gamma = max(0.35, 1.0 - (0.006 * (inlet_angle_half * 2) * np.log10(area_ratio)))
             vane_loss = 0.0
-        
         v_pipe = (m_flow_cmm / 60) / area_pipe
         dp_form = (0.5 * rho * v_pipe**2) * (0.5 + vane_loss)
         v_ch_eff = ((m_flow_cmm / 60) / (area_install * ofa)) * (2 - gamma)
         f_ch = 56.9 / ((rho * v_ch_eff * d_h) / mu)
         dp_cat = f_ch * (total_cat_length_m / d_h) * (rho * v_ch_eff**2 / 2)
-        return float((dp_form + dp_cat) / 1000), float(gamma), float(v_ch_eff)
-
-    dp_v, g_v, _ = calculate(vane_pos_cm_default, True)
-    dp_nv, g_nv, _ = calculate(vane_pos_cm_default, False)
-    
+        return float((dp_form + dp_cat) / 1000), float(gamma)
+    dp_v, g_v = calculate(vane_pos_cm_default, True)
+    dp_nv, g_nv = calculate(vane_pos_cm_default, False)
     pos_range = np.linspace(0, 100, 20)
     opt_dp, opt_gamma = [], []
     for p in pos_range:
-        d, g, _ = calculate(p, True)
+        d, g = calculate(p, True)
         opt_dp.append(d); opt_gamma.append(g)
-
-    return {
-        "dp_v": dp_v, "g_v": g_v, 
-        "dp_nv": dp_nv, "g_nv": g_nv,
-        "opt_pos": pos_range.tolist(), "opt_dp": opt_dp, "opt_gamma": opt_gamma
-    }
-
+    return {"dp_v": dp_v, "g_v": g_v, "dp_nv": dp_nv, "g_nv": g_nv, "opt_pos": pos_range.tolist(), "opt_dp": opt_dp, "opt_gamma": opt_gamma}
 calculate_logic(${JSON.stringify(inputs)})
 `;
         try {
@@ -337,37 +304,49 @@ calculate_logic(${JSON.stringify(inputs)})
     }
 
     function drawFlowCharts(res) {
-        if (flowChart1) flowChart1.destroy();
-        if (flowChart2) flowChart2.destroy();
-        const ctx1 = document.getElementById('flowChart1').getContext('2d');
-        flowChart1 = new Chart(ctx1, {
+        if (flowChartBPBar) flowChartBPBar.destroy();
+        if (flowChartUniformBar) flowChartUniformBar.destroy();
+        if (flowChartBPOpt) flowChartBPOpt.destroy();
+        if (flowChartUniformOpt) flowChartUniformOpt.destroy();
+
+        const ctx1 = document.getElementById('flowChartBPBar').getContext('2d');
+        flowChartBPBar = new Chart(ctx1, {
             type: 'bar',
             data: {
                 labels: ['With Vane', 'No Vane'],
-                datasets: [
-                    { label: 'Pressure (kPa)', data: [res.dp_v, res.dp_nv], backgroundColor: ['#0062ff', '#94a3b8'], borderRadius: 6 },
-                    { label: 'Gamma (γ)', data: [res.g_v, res.g_nv], backgroundColor: ['#00c853', '#cbd5e1'], borderRadius: 6 }
-                ]
+                datasets: [{ label: 'Backpressure (kPa)', data: [res.dp_v, res.dp_nv], backgroundColor: ['#0062ff', '#94a3b8'], borderRadius: 6 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
-        const ctx2 = document.getElementById('flowChart2').getContext('2d');
-        flowChart2 = new Chart(ctx2, {
+
+        const ctx2 = document.getElementById('flowChartUniformBar').getContext('2d');
+        flowChartUniformBar = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: ['With Vane', 'No Vane'],
+                datasets: [{ label: 'Uniformity (γ)', data: [res.g_v, res.g_nv], backgroundColor: ['#00c853', '#cbd5e1'], borderRadius: 6 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const ctx3 = document.getElementById('flowChartBPOpt').getContext('2d');
+        flowChartBPOpt = new Chart(ctx3, {
             type: 'line',
             data: {
                 labels: res.opt_pos.map(p => p.toFixed(0)),
-                datasets: [
-                    { label: 'Pressure (kPa)', data: res.opt_dp, borderColor: '#ff3d00', yAxisID: 'y', tension: 0.4 },
-                    { label: 'Uniformity (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], yAxisID: 'y1', tension: 0.4 }
-                ]
+                datasets: [{ label: 'BP Optimization (kPa)', data: res.opt_dp, borderColor: '#ff3d00', tension: 0.4 }]
             },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    y: { type: 'linear', position: 'left', title: { display: true, text: 'Pressure' } },
-                    y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Uniformity' } }
-                }
-            }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Pressure (kPa)' } } } }
+        });
+
+        const ctx4 = document.getElementById('flowChartUniformOpt').getContext('2d');
+        flowChartUniformOpt = new Chart(ctx4, {
+            type: 'line',
+            data: {
+                labels: res.opt_pos.map(p => p.toFixed(0)),
+                datasets: [{ label: 'Uniformity Optimization (γ)', data: res.opt_gamma, borderColor: '#00c853', borderDash: [5, 5], tension: 0.4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Gamma (γ)' } } } }
         });
     }
 });

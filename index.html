@@ -143,17 +143,6 @@
         <!-- 유동 분석 모드 (새로운 레이아웃) -->
         <div id="flow-content" class="main-layout" style="display: none;">
             <aside class="layout-col col-inputs">
-                <section class="form-section">
-                    <h3>스크립트 업로드</h3>
-                    <div class="upload-container">
-                        <input type="file" id="py-upload" accept=".py" class="file-input" style="display: none;">
-                        <label for="py-upload" class="file-label" style="cursor: pointer; padding: 10px; background: var(--primary); color: white; border-radius: 6px; display: inline-block; width: 100%; text-align: center; box-sizing: border-box;">
-                            📁 Python 스크립트 선택 (.py)
-                        </label>
-                        <p id="file-name" class="file-status" style="font-size: 0.8rem; margin-top: 5px; text-align: center;">선택된 파일 없음 (기본값: vane2_thicker.py)</p>
-                    </div>
-                </section>
-                
                 <form id="flow-form" class="vertical-form">
                     <section class="form-section">
                         <h3>입력 파라미터</h3>
@@ -167,7 +156,7 @@
                     <button id="run-flow-btn" class="primary-btn">유동 분석 실행</button>
                 </div>
                 <div id="py-status" class="guide-box-mini">
-                    Pyodide 초기화 대기 중...
+                    시스템 초기화 중...
                 </div>
             </aside>
             
@@ -182,12 +171,18 @@
             
             <section class="layout-col col-graph">
                 <div class="graph-box">
-                    <h3>유동 균일도 및 배압 그래프</h3>
+                    <h3>분석 결과 시각화</h3>
                     <div class="chart-wrapper">
-                        <canvas id="flowChart1"></canvas>
+                        <canvas id="flowChartBPBar"></canvas>
                     </div>
                     <div class="chart-wrapper" style="margin-top: 10px;">
-                        <canvas id="flowChart2"></canvas>
+                        <canvas id="flowChartUniformBar"></canvas>
+                    </div>
+                    <div class="chart-wrapper" style="margin-top: 10px;">
+                        <canvas id="flowChartBPOpt"></canvas>
+                    </div>
+                    <div class="chart-wrapper" style="margin-top: 10px;">
+                        <canvas id="flowChartUniformOpt"></canvas>
                     </div>
                 </div>
             </section>
