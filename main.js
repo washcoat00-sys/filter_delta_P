@@ -28,28 +28,22 @@ function switchMode(mode) {
     }
 }
 
-// 외부 HTML 로드 함수 (개선됨)
+// 외부 HTML 로드 함수 (상수 기반으로 변경하여 로컬 실행 지원)
 async function loadContent() {
     try {
-        const dpRes = await fetch('deltaP.html');
-        const flowRes = await fetch('flow.html');
-        
-        if (!dpRes.ok || !flowRes.ok) {
-            throw new Error(`HTTP error! status: ${dpRes.status} / ${flowRes.status}`);
+        // modules.js에 정의된 상수를 사용 (fetch 차단 방지)
+        if (typeof deltaP_HTML !== 'undefined' && typeof flow_HTML !== 'undefined') {
+            document.getElementById('deltap-content').innerHTML = deltaP_HTML;
+            document.getElementById('flow-content').innerHTML = flow_HTML;
+            console.log("HTML Modules Loaded from Modules.js");
+            return true;
+        } else {
+            throw new Error("Modules not defined");
         }
-        
-        const dpHtml = await dpRes.text();
-        const flowHtml = await flowRes.text();
-        
-        document.getElementById('deltap-content').innerHTML = dpHtml;
-        document.getElementById('flow-content').innerHTML = flowHtml;
-        
-        console.log("HTML Modules Loaded Successfully");
-        return true;
     } catch (e) {
         console.error("Content loading failed:", e);
         const errorMsg = `<div class="placeholder-msg" style="color: var(--accent);">
-            ⚠️ 모듈 로드 실패 (서버 환경 필요)<br>
+            ⚠️ 모듈 로드 실패 (modules.js 확인 필요)<br>
             <small>${e.message}</small>
         </div>`;
         document.getElementById('deltap-content').innerHTML = errorMsg;
