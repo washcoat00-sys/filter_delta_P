@@ -348,13 +348,11 @@ calculate_logic(${JSON.stringify(inputs)})
 
     function displayFlowResults(res) {
         if (!flowResultsContent) return;
-        const gain = ((res.dp_nv - res.dp_v) / res.dp_nv * 100).toFixed(1);
         flowResultsContent.innerHTML = `
             <div class="result-card" style="border-left-color: var(--primary)">
                 <strong>Backpressure Analysis</strong>
                 <p>With Vane: ${res.dp_v.toFixed(3)} kPa</p>
                 <p>No Vane: ${res.dp_nv.toFixed(3)} kPa</p>
-                <p style="color:var(--secondary); font-weight:700">Improvement: ${gain}%</p>
             </div>
             <div class="result-card" style="border-left-color: var(--secondary)">
                 <strong>Flow Uniformity (γ)</strong>
