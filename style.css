@@ -63,14 +63,10 @@ header {
     gap: 40px;
 }
 
-header h1 {
-    font-size: 1.4rem;
-    font-weight: 800;
-    margin: 0;
-    background: var(--header-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px;
+.main-logo {
+    height: 40px; /* 로고 높이 조절 */
+    width: auto;
+    object-fit: contain;
 }
 
 .mode-tabs {
