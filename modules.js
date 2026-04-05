@@ -1,5 +1,5 @@
 const deltaP_HTML = `
-<!-- 차압 분석 모드 -->
+<!-- 필터 차압분석 모드 -->
 <aside class="layout-col col-inputs">
     <div class="system-diagram-container animate-fade">
         <img src="system_diagram.png" id="system-img" alt="구성도" onerror="this.style.display='none';">
@@ -87,7 +87,7 @@ const deltaP_HTML = `
 
 <section class="layout-col col-graph">
     <div class="graph-box">
-        <h3>DPF 차압 분석 예측 그래프</h3>
+        <h3>필터 차압분석 예측 그래프</h3>
         <div class="chart-wrapper">
             <canvas id="dpfChart"></canvas>
         </div>
@@ -96,16 +96,12 @@ const deltaP_HTML = `
 `;
 
 const flow_HTML = `
-<!-- 유동 분석 모드 -->
+<!-- 촉매 유동 분석 모드 -->
 <aside class="layout-col col-inputs">
     <section class="form-section">
-        <h3>스크립트 업로드</h3>
-        <div class="upload-container">
-            <input type="file" id="py-upload" accept=".py" class="file-input" style="display: none;">
-            <label for="py-upload" class="file-label" style="cursor: pointer; padding: 10px; background: var(--primary); color: white; border-radius: 6px; display: inline-block; width: 100%; text-align: center; box-sizing: border-box;">
-                📁 Python 스크립트 선택 (.py)
-            </label>
-            <p id="file-name" class="file-status" style="font-size: 0.8rem; margin-top: 5px; text-align: center;">선택된 파일 없음 (기본값: vane2_thicker.py)</p>
+        <h3>촉매 유동 형상</h3>
+        <div class="system-diagram-container animate-fade">
+            <img src="fig1.png" alt="촉매 유동 형상" style="width: 100%; border-radius: 8px;">
         </div>
     </section>
     
@@ -119,7 +115,7 @@ const flow_HTML = `
     </form>
     
     <div class="btn-group-vertical">
-        <button id="run-flow-btn" class="primary-btn">유동 분석 실행</button>
+        <button id="run-flow-btn" class="primary-btn">촉매 유동 분석 실행</button>
     </div>
 </aside>
 
@@ -138,7 +134,7 @@ const flow_HTML = `
 
 <section class="layout-col col-graph">
     <div class="graph-box">
-        <h3>유동 분석 결과 그래프</h3>
+        <h3>촉매 유동 분석 결과 그래프</h3>
         <div class="chart-wrapper">
             <canvas id="flowChartDP"></canvas>
         </div>
