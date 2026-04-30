@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <!-- Microsoft Clarity -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "vumo5a6b4h");
+    </script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-947MMY506B"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-947MMY506B');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>분석 시스템 v2.3</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <script src="modules.js"></script>
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <div class="dpf-wide-container">
+        <header>
+            <div class="header-left">
+                <img src="LOGO.png" alt="Logo" class="main-logo">
+                <nav class="mode-tabs">
+                    <button id="tab-deltap" class="tab-btn active" onclick="switchMode('deltap')">
+                        <span class="icon">📊</span> 필터 차압분석
+                    </button>
+                    <button id="tab-flow" class="tab-btn" onclick="switchMode('flow')">
+                        <span class="icon">🌪️</span> 촉매 유동 분석
+                    </button>
+                </nav>
+            </div>
+            <button id="theme-toggle" class="theme-btn">테마 변경</button>
+        </header>
+        
+        <!-- 차압 분석 컨테이너 (deltaP.html에서 로드됨) -->
+        <div id="deltap-content" class="main-layout">
+            <div class="placeholder-msg">필터 차압분석 모듈 로딩 중...</div>
+        </div>
+
+        <!-- 유동 분석 컨테이너 (flow.html에서 로드됨) -->
+        <div id="flow-content" class="main-layout" style="display: none;">
+            <div class="placeholder-msg">촉매 유동 분석 모듈 로딩 중...</div>
+        </div>
+    </div>
+</body>
+</html>
