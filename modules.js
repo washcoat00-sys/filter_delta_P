@@ -42,7 +42,7 @@ const deltaP_HTML = `
                     <input type="text" id="k2" value="2.0e-14" title="k2 Permeability">
                 </div>
             </div>
-            <div class="form-row"><span>Pipe / Cone / Deg</span>
+            <div class="form-row"><span>Pipe Dia/Cone Length/Cone Deg</span>
                 <div class="triple-input">
                     <input type="number" id="pipe_dia_mm" value="150" title="Pipe Dia (mm)">
                     <input type="number" id="cone_len_mm" value="600" title="Cone Length (mm)">
